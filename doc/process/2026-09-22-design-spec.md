@@ -138,14 +138,16 @@ plain text, and to decline anything outside room booking.
 
 - Checkpointer: `InMemorySaver`. Thread id = `"{user_id}:{conversation_id}"`, built on the server,
   so a user can never resume another user's thread.
-- Agent recursion limit 12; message length ≤ 1000 characters.
+- At most 6 model calls per user message (`ModelCallLimitMiddleware`); message length ≤ 1000
+  characters.
 
 ## 6. API, authentication, UI
 
 - `POST /auth/login` → JWT (HS256, 8 h). Users seeded with hashed passwords.
 - `POST /chat/messages` `{conversation_id?, message}` and `POST /chat/decisions`
-  `{conversation_id, approve}` → `{conversation_id, reply, pending_action?: {summary, tool, args}}`.
+  `{conversation_id, approve}` → `{conversation_id, reply, pending_actions: [{tool, summary}]}`.
   A decision with no pending action → 409.
+- `GET /auth/me` → the logged-in user, so the UI can check a stored token.
 - `GET /rooms`, `GET /rooms/{id}/schedule?start&end`, `GET /bookings/mine` → read-only REST over
   the same service, used by the schedule panel.
 - `GET /health`.
@@ -197,11 +199,12 @@ app/
   db.py          engine, session, create tables, seed
   models.py      SQLAlchemy tables
   booking.py     BookingService, BookingError
-  auth.py        login, JWT, current-user dependency
+  auth.py        login, JWT, current user
   agent.py       tools, prompt, middleware, create_agent
+  chat.py        conversations (message, decision, reply) and the per-user rate limit
   main.py        FastAPI app and routes
   static/index.html
-tests/           test_booking.py · test_api.py · test_agent.py
+tests/           support.py · test_config.py · test_db.py · test_booking.py · test_api.py · test_agent.py · test_chat.py
 evals/           test_evals.py
 doc/             README.md · architecture.md · walkthrough.ipynb · process/
 Dockerfile · pyproject.toml · uv.lock · .env.example · .gitattributes · .github/workflows/ci.yml · README.md
@@ -232,15 +235,20 @@ Token streaming, multiple replicas and shared conversation state (a Postgres che
 next step), per-user time zones, database migrations (Alembic is the next step), write endpoints in
 the REST API, recurring bookings.
 
-## 12. To verify before coding
+## 12. Verified before coding (2026-09-22)
 
-Facts that depend on library versions, checked against the documentation of the day in the first
-plan step:
+Checked against the documentation of the day and by running probes against the installed
+libraries (langchain 1.4.2, langgraph 1.2.12, langchain-openai 1.6.3, fastapi 0.141.1):
 
-1. The `when` predicate's `ToolCallRequest` exposes the runtime context (needed for `check_cancel`
-   ownership).
-2. How `create_agent` rebuilds the system prompt per turn (dynamic prompt middleware).
-3. A fake chat model that supports `bind_tools` and scripted tool calls with `create_agent`.
-4. The default `OPENAI_MODEL`: current id, tool-calling quality, price — with source and date.
-5. The installed version's invoke/interrupt API (`result.interrupts` vs `__interrupt__`).
-6. The password hashing library currently recommended by the FastAPI docs.
+1. The `when` predicate receives a `ToolCallRequest` whose `runtime.context` is the user. It runs
+   again when the graph resumes, so a booking that became invalid while waiting is not paused
+   again: the tool runs, fails validation and writes nothing.
+2. `@dynamic_prompt` middleware rebuilds the system prompt on every model call.
+3. `GenericFakeChatModel` lacks `bind_tools`; a subclass that returns itself scripts tool calls.
+4. Default model `gpt-6-luna` (OpenAI models page, 2026-09-22): function calling, reasoning effort
+   levels, USD 0.10 / 0.50 per million input / output tokens. Called through the Responses API.
+5. `invoke(..., version="v2")` returns `.value` and `.interrupts`; `get_state(config).interrupts`
+   tells whether a confirmation is pending; `reject` with a `message` reaches the model as the
+   user's reason.
+6. FastAPI recommends `pwdlib[argon2]` and `PyJWT`. `OAuth2PasswordRequestForm` needs
+   `python-multipart`; `tzdata` is needed for time zones on Windows and slim images.
