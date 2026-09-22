@@ -1,11 +1,12 @@
 import pytest
 from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage
 
 from app.booking import BookingService
 from app.config import Settings
 from app.db import create_session_factory, seed
 from app.main import create_app
-from tests.support import FIXED_NOW, FakeClock, login_headers
+from tests.support import FIXED_NOW, FakeClock, login_headers, scripted
 
 
 @pytest.fixture
@@ -30,8 +31,16 @@ def service(settings, clock) -> BookingService:
 
 
 @pytest.fixture
-def client(settings, clock) -> TestClient:
-    return TestClient(create_app(settings, clock=clock))
+def make_client(settings, clock):
+    def make(*script: AIMessage) -> TestClient:
+        return TestClient(create_app(settings, chat_model=scripted(*script), clock=clock))
+
+    return make
+
+
+@pytest.fixture
+def client(make_client) -> TestClient:
+    return make_client(AIMessage(content="Hello!"))
 
 
 @pytest.fixture
