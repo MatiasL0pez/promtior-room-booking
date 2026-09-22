@@ -46,7 +46,10 @@ def test_me_returns_the_logged_in_user(client, user1_headers):
 
 @pytest.mark.parametrize(
     ("secret", "lifetime"),
-    [("test-secret", timedelta(minutes=-1)), ("another-secret", timedelta(minutes=5))],
+    [
+        ("test-secret-long-enough-for-hs256-signing", timedelta(minutes=-1)),
+        ("another-secret-long-enough-for-hs256-signing", timedelta(minutes=5)),
+    ],
 )
 def test_expired_or_foreign_tokens_are_rejected(client, secret, lifetime):
     token = create_access_token(CurrentUser(id=1, username="User1"), secret, lifetime)

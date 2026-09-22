@@ -12,7 +12,7 @@ from tests.support import FIXED_NOW, FakeClock, login_headers
 def settings(tmp_path) -> Settings:
     return Settings(
         _env_file=None,
-        jwt_secret="test-secret",
+        jwt_secret="test-secret-long-enough-for-hs256-signing",
         database_url=f"sqlite:///{(tmp_path / 'test.db').as_posix()}",
     )
 
