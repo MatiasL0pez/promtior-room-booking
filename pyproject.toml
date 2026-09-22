@@ -1,0 +1,40 @@
+[project]
+name = "room-booking-assistant"
+version = "1.0.0"
+description = "Conversational meeting room booking assistant with tool calling"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "langchain>=1.4.2",
+    "langchain-openai>=1.6.3",
+    "psycopg[binary]>=3.3.6",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.14.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0.54",
+    "tzdata>=2026.4",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-m 'not eval'"
+markers = ["eval: talks to the real OpenAI model; needs OPENAI_API_KEY"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["doc", ".superpowers"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
