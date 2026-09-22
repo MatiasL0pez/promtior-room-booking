@@ -108,3 +108,10 @@ def test_my_bookings_lists_only_mine(client, service, user1_headers):
     service.create(USER2_ID, booking_request(room_id="C", title="Theirs", attendees=2))
     bookings = client.get("/bookings/mine", headers=user1_headers).json()
     assert [booking["title"] for booking in bookings] == ["Mine"]
+
+
+def test_the_web_page_is_served(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "<title>Room Booking Assistant</title>" in response.text

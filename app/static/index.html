@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Room Booking Assistant</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --panel: #ffffff; --text: #1d2130; --muted: #6b7185; --border: #e3e6ef;
+    --accent: #4f46e5; --accent-text: #ffffff; --free: #eefbf3; --busy: #e4e7ef;
+    --mine: #e0e7ff; --mine-border: #818cf8; --danger: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11131a; --panel: #1a1d27; --text: #e7e9f1; --muted: #9aa0b4; --border: #2a2e3b;
+      --accent: #818cf8; --accent-text: #11131a; --free: #15271d; --busy: #2b2f3c;
+      --mine: #272c52; --mine-border: #818cf8; --danger: #f97066;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0; }
+  .who { color: var(--muted); font-size: 14px; margin-right: 8px; }
+  button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button:disabled { opacity: .5; cursor: default; }
+  input, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+  .hidden { display: none !important; }
+  #login { max-width: 360px; margin: 12vh auto; padding: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: grid; gap: 12px; }
+  #login h2 { margin: 0; font-size: 18px; }
+  #login p { margin: 0; color: var(--muted); font-size: 14px; }
+  .error { color: var(--danger); font-size: 14px; min-height: 1em; }
+  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; padding: 16px; height: calc(100vh - 58px); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; min-height: 0; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 320px; }
+  .bubble { max-width: 85%; padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .user { align-self: flex-end; background: var(--accent); color: var(--accent-text); }
+  .assistant { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); }
+  .thinking { color: var(--muted); font-style: italic; }
+  .card { align-self: flex-start; max-width: 85%; border: 1px solid var(--mine-border); background: var(--mine); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+  .card .actions { display: flex; gap: 8px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+  .suggestions button { font-size: 13px; padding: 5px 10px; border-radius: 999px; color: var(--muted); }
+  #composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
+  #composer textarea { flex: 1; resize: none; height: 44px; }
+  .schedule-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .schedule-head h2 { font-size: 15px; margin: 0; }
+  .legend { display: flex; gap: 14px; padding: 12px 16px 0; color: var(--muted); font-size: 12px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--swatch); }
+  #grid-wrap { overflow: auto; padding: 10px 16px 16px; }
+  table { border-collapse: separate; border-spacing: 3px; width: 100%; font-size: 12px; }
+  th { color: var(--muted); font-weight: 600; }
+  td.time { color: var(--muted); text-align: right; padding-right: 6px; white-space: nowrap; }
+  td.slot { height: 18px; border-radius: 4px; background: var(--free); }
+  td.slot.occupied { background: var(--busy); }
+  td.slot.mine { background: var(--mine); box-shadow: inset 0 0 0 1px var(--mine-border); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cubo Itaú · Meeting rooms</h1>
+  <div><span class="who" id="who"></span><button id="logout" class="hidden" type="button">Sign out</button></div>
+</header>
+
+<form id="login">
+  <h2>Sign in</h2>
+  <p>Use User1 or User2.</p>
+  <input id="username" autocomplete="username" placeholder="Username" required>
+  <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+  <button class="primary" type="submit">Sign in</button>
+  <div class="error" id="login-error"></div>
+</form>
+
+<main id="app" class="hidden">
+  <section class="panel">
+    <div id="messages"></div>
+    <div class="suggestions" id="suggestions">
+      <button type="button">Which rooms are free tomorrow from 10:00 to 11:00?</button>
+      <button type="button">Book room B tomorrow from 15:00 to 16:00 for 4 people, title "Design review"</button>
+      <button type="button">Show my bookings</button>
+    </div>
+    <form id="composer">
+      <textarea id="input" placeholder="Ask to check, book or cancel a room…" maxlength="1000"></textarea>
+      <button class="primary" type="submit" id="send">Send</button>
+    </form>
+  </section>
+  <section class="panel">
+    <div class="schedule-head">
+      <h2>Schedule</h2>
+      <input type="date" id="day">
+    </div>
+    <div class="legend">
+      <span style="--swatch: var(--free)">Free</span>
+      <span style="--swatch: var(--busy)">Occupied</span>
+      <span style="--swatch: var(--mine)">Yours</span>
+    </div>
+    <div id="grid-wrap"><table id="grid"></table></div>
+  </section>
+</main>
+
+<script>
+const state = { token: null, username: null, conversationId: null, busy: false };
+const byId = (id) => document.getElementById(id);
+
+function remember(key, value) {
+  try {
+    if (value === null) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, value);
+  } catch (error) {}
+}
+
+function recall(key) {
+  try { return sessionStorage.getItem(key); } catch (error) { return null; }
+}
+
+async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const response = await fetch(path, { ...options, headers });
+  if (response.status === 401 && state.token) {
+    signOut();
+    throw new Error("Your session expired. Sign in again.");
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    let message = body.message || `Request failed (${response.status})`;
+    if (typeof body.detail === "string") message = body.detail;
+    throw new Error(message);
+  }
+  return body;
+}
+
+function showApp() {
+  byId("login").classList.add("hidden");
+  byId("app").classList.remove("hidden");
+  byId("logout").classList.remove("hidden");
+  byId("who").textContent = state.username;
+  if (!byId("messages").children.length) {
+    addBubble("assistant", `Hi ${state.username}! I can check availability, book rooms A–E and cancel your bookings.`);
+  }
+  loadSchedule();
+}
+
+function signOut() {
+  state.token = null;
+  state.username = null;
+  state.conversationId = null;
+  remember("token", null);
+  remember("username", null);
+  byId("messages").replaceChildren();
+  byId("app").classList.add("hidden");
+  byId("logout").classList.add("hidden");
+  byId("login").classList.remove("hidden");
+  byId("who").textContent = "";
+}
+
+byId("login").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  byId("login-error").textContent = "";
+  const form = new URLSearchParams({ username: byId("username").value, password: byId("password").value });
+  try {
+    const body = await api("/auth/login", { method: "POST", body: form });
+    state.token = body.access_token;
+    state.username = body.username;
+    remember("token", state.token);
+    remember("username", state.username);
+    showApp();
+  } catch (error) {
+    byId("login-error").textContent = error.message;
+  }
+});
+
+byId("logout").addEventListener("click", signOut);
+
+function scrollToBottom() {
+  byId("messages").scrollTop = byId("messages").scrollHeight;
+}
+
+function addBubble(kind, text) {
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${kind}`;
+  bubble.textContent = text;
+  byId("messages").append(bubble);
+  scrollToBottom();
+  return bubble;
+}
+
+function addConfirmation(actions) {
+  const card = document.createElement("div");
+  card.className = "card";
+  for (const action of actions) {
+    const line = document.createElement("div");
+    line.textContent = action.summary;
+    card.append(line);
+  }
+  const buttons = document.createElement("div");
+  buttons.className = "actions";
+  const confirm = document.createElement("button");
+  confirm.className = "primary";
+  confirm.type = "button";
+  confirm.textContent = "Confirm";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.textContent = "Cancel";
+  confirm.addEventListener("click", () => decide(true));
+  cancel.addEventListener("click", () => decide(false));
+  buttons.append(confirm, cancel);
+  card.append(buttons);
+  byId("messages").append(card);
+  scrollToBottom();
+}
+
+function closePendingCards() {
+  for (const button of document.querySelectorAll(".card button")) button.disabled = true;
+}
+
+async function talk(path, payload) {
+  state.busy = true;
+  byId("send").disabled = true;
+  const thinking = addBubble("assistant thinking", "Thinking…");
+  try {
+    const reply = await api(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    state.conversationId = reply.conversation_id;
+    thinking.remove();
+    if (reply.reply) addBubble("assistant", reply.reply);
+    if (reply.pending_actions.length) addConfirmation(reply.pending_actions);
+    loadSchedule();
+  } catch (error) {
+    thinking.remove();
+    addBubble("assistant", error.message);
+  } finally {
+    state.busy = false;
+    byId("send").disabled = false;
+  }
+}
+
+function decide(approve) {
+  if (state.busy) return;
+  closePendingCards();
+  talk("/chat/decisions", { conversation_id: state.conversationId, approve });
+}
+
+function send(text) {
+  const message = text.trim();
+  if (!message || state.busy) return;
+  closePendingCards();
+  addBubble("user", message);
+  talk("/chat/messages", { conversation_id: state.conversationId, message });
+}
+
+byId("composer").addEventListener("submit", (event) => {
+  event.preventDefault();
+  send(byId("input").value);
+  byId("input").value = "";
+});
+
+byId("input").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    byId("composer").requestSubmit();
+  }
+});
+
+for (const suggestion of byId("suggestions").querySelectorAll("button")) {
+  suggestion.addEventListener("click", () => send(suggestion.textContent));
+}
+
+function officeToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Montevideo" }).format(new Date());
+}
+
+function addHalfHour(text) {
+  const [day, clock] = text.split("T");
+  let [hours, minutes] = clock.split(":").map(Number);
+  minutes += 30;
+  if (minutes === 60) {
+    hours += 1;
+    minutes = 0;
+  }
+  return `${day}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+async function loadSchedule() {
+  if (!byId("day").value) byId("day").value = officeToday();
+  const day = byId("day").value;
+  try {
+    const rooms = await api("/rooms");
+    const schedules = await Promise.all(
+      rooms.map((room) => api(`/rooms/${room.room}/schedule?start=${day}T00:00&end=${day}T23:59`))
+    );
+    renderGrid(rooms, schedules);
+  } catch (error) {
+    byId("grid").replaceChildren();
+  }
+}
+
+function renderGrid(rooms, schedules) {
+  const table = byId("grid");
+  table.replaceChildren();
+  const ranges = schedules[0].ranges;
+  if (!ranges.length) return;
+  const head = table.insertRow();
+  head.append(document.createElement("th"));
+  for (const room of rooms) {
+    const cell = document.createElement("th");
+    cell.textContent = `${room.room} · ${room.capacity}`;
+    head.append(cell);
+  }
+  const end = ranges[ranges.length - 1].end;
+  for (let time = ranges[0].start; time < end; time = addHalfHour(time)) {
+    const row = table.insertRow();
+    const label = row.insertCell();
+    label.className = "time";
+    label.textContent = time.slice(11);
+    for (const schedule of schedules) {
+      const cell = row.insertCell();
+      const range = schedule.ranges.find((candidate) => candidate.start <= time && time < candidate.end);
+      cell.className = "slot";
+      cell.title = "Free";
+      if (range && range.status === "occupied" && range.mine) {
+        cell.classList.add("mine");
+        cell.title = `${range.title} (booking ${range.booking_id})`;
+      } else if (range && range.status === "occupied") {
+        cell.classList.add("occupied");
+        cell.title = "Occupied";
+      }
+    }
+  }
+}
+
+byId("day").addEventListener("change", loadSchedule);
+
+state.token = recall("token");
+state.username = recall("username");
+if (state.token) api("/auth/me").then(showApp).catch(signOut);
+</script>
+</body>
+</html>

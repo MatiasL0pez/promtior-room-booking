@@ -1,9 +1,10 @@
 import logging
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,8 @@ from app.booking import BookingError, BookingService
 from app.chat import Conversations, MessageRateLimiter, NothingToDecide
 from app.config import Settings
 from app.db import create_session_factory, seed
+
+INDEX_PAGE = Path(__file__).parent / "static" / "index.html"
 
 
 class MessageIn(BaseModel):
@@ -70,6 +73,10 @@ def create_app(settings: Settings | None = None, chat_model=None, clock=None) ->
         if error.code.endswith("NOT_FOUND"):
             return JSONResponse(error.as_dict(), status_code=404)
         return JSONResponse(error.as_dict(), status_code=400)
+
+    @app.get("/", include_in_schema=False)
+    def index() -> FileResponse:
+        return FileResponse(INDEX_PAGE)
 
     @app.get("/health")
     def health() -> dict:
