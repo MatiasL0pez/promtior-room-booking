@@ -191,6 +191,12 @@ def test_available_rooms_outside_business_hours_is_an_error(service):
     assert error.value.code == "OUTSIDE_BUSINESS_HOURS"
 
 
+def test_available_rooms_raises_invalid_time_range_when_end_equals_start(service):
+    with pytest.raises(BookingError) as error:
+        service.available_rooms(local("2026-09-23T10:00"), local("2026-09-23T10:00"))
+    assert error.value.code == "INVALID_TIME_RANGE"
+
+
 def test_schedule_hides_other_peoples_titles(service):
     service.create(USER1_ID, booking_request(title="Interview"))
     service.create(
@@ -248,6 +254,12 @@ def test_schedule_errors(service, room_id, end, code):
     with pytest.raises(BookingError) as error:
         service.room_schedule(USER1_ID, room_id, local("2026-09-23T00:00"), local(end))
     assert error.value.code == code
+
+
+def test_schedule_raises_invalid_time_range_when_end_equals_start(service):
+    with pytest.raises(BookingError) as error:
+        service.room_schedule(USER1_ID, "B", local("2026-09-23T10:00"), local("2026-09-23T10:00"))
+    assert error.value.code == "INVALID_TIME_RANGE"
 
 
 def test_bookings_of_lists_only_own_active_future_bookings(service, clock):

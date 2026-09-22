@@ -85,18 +85,23 @@ class BookingService:
                 closing=f"{self.closing_hour:02d}:00",
             )
 
+    def find_room(self, session: Session, room_id: str) -> Room:
+        room = session.get(Room, room_id)
+        if room is None:
+            valid_rooms = list(session.scalars(select(Room.id).order_by(Room.id)))
+            raise BookingError(
+                "ROOM_NOT_FOUND", f"Room {room_id} does not exist.", valid_rooms=valid_rooms
+            )
+        return room
+
+    def check_time_range(self, start: datetime, end: datetime) -> None:
+        if end <= start:
+            raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+
     def check_create(self, request: BookingRequest) -> None:
         with self.session_factory() as session:
-            room = session.get(Room, request.room_id)
-            if room is None:
-                valid_rooms = list(session.scalars(select(Room.id).order_by(Room.id)))
-                raise BookingError(
-                    "ROOM_NOT_FOUND",
-                    f"Room {request.room_id} does not exist.",
-                    valid_rooms=valid_rooms,
-                )
-            if request.end <= request.start:
-                raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+            room = self.find_room(session, request.room_id)
+            self.check_time_range(request.start, request.end)
             for value in (request.start, request.end):
                 local_value = value.astimezone(self.timezone)
                 if (
@@ -220,8 +225,7 @@ class BookingService:
     def available_rooms(
         self, start: datetime, end: datetime, attendees: int | None = None
     ) -> list[dict]:
-        if end <= start:
-            raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+        self.check_time_range(start, end)
         self.check_business_hours(start, end)
         with self.session_factory() as session:
             busy_room_ids = set(
@@ -242,17 +246,11 @@ class BookingService:
     def room_schedule(
         self, viewer_user_id: int, room_id: str, start: datetime, end: datetime
     ) -> dict:
-        if end <= start:
-            raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+        self.check_time_range(start, end)
         if end - start > MAX_QUERY_RANGE:
             raise BookingError("RANGE_TOO_LARGE", "A schedule covers at most 7 days.", max_days=7)
         with self.session_factory() as session:
-            room = session.get(Room, room_id)
-            if room is None:
-                valid_rooms = list(session.scalars(select(Room.id).order_by(Room.id)))
-                raise BookingError(
-                    "ROOM_NOT_FOUND", f"Room {room_id} does not exist.", valid_rooms=valid_rooms
-                )
+            room = self.find_room(session, room_id)
             bookings = list(
                 session.scalars(
                     select(Booking)
