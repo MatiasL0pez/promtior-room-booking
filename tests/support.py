@@ -1,5 +1,10 @@
 from datetime import datetime
+from uuid import uuid4
 from zoneinfo import ZoneInfo
+
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+from langchain_core.messages import AIMessage
+from pydantic import Field
 
 from app.auth import CurrentUser
 from app.booking import BookingRequest
@@ -43,3 +48,24 @@ def login_headers(client, username: str) -> dict:
         "/auth/login", data={"username": username, "password": "TechnicalChallengePromtior"}
     )
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+class ScriptedChatModel(GenericFakeChatModel):
+    received: list = Field(default_factory=list)
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        self.received.append(messages)
+        return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
+
+def scripted(*messages: AIMessage) -> ScriptedChatModel:
+    return ScriptedChatModel(messages=iter(messages))
+
+
+def tool_call(name: str, **arguments) -> AIMessage:
+    return AIMessage(
+        content="", tool_calls=[{"name": name, "args": arguments, "id": f"call_{uuid4().hex[:8]}"}]
+    )
