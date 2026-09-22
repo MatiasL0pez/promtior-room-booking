@@ -11,6 +11,7 @@ from app.models import Booking, BookingSlot, Room
 
 SLOT_LENGTH = timedelta(minutes=30)
 MAX_DURATION = timedelta(hours=3)
+MAX_QUERY_RANGE = timedelta(days=7)
 MAX_TITLE_LENGTH = 120
 
 
@@ -210,3 +211,108 @@ class BookingService:
                 )
             session.execute(delete(BookingSlot).where(BookingSlot.booking_id == booking_id))
         return cancelled
+
+    def rooms(self) -> list[dict]:
+        with self.session_factory() as session:
+            rooms = session.scalars(select(Room).order_by(Room.id))
+            return [{"room": room.id, "capacity": room.capacity} for room in rooms]
+
+    def available_rooms(
+        self, start: datetime, end: datetime, attendees: int | None = None
+    ) -> list[dict]:
+        if end <= start:
+            raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+        self.check_business_hours(start, end)
+        with self.session_factory() as session:
+            busy_room_ids = set(
+                session.scalars(
+                    select(Booking.room_id).where(*active_bookings_overlapping(start, end))
+                )
+            )
+            rooms = list(session.scalars(select(Room).order_by(Room.id)))
+        available = []
+        for room in rooms:
+            if room.id in busy_room_ids:
+                continue
+            if attendees is not None and room.capacity < attendees:
+                continue
+            available.append({"room": room.id, "capacity": room.capacity})
+        return available
+
+    def room_schedule(
+        self, viewer_user_id: int, room_id: str, start: datetime, end: datetime
+    ) -> dict:
+        if end <= start:
+            raise BookingError("INVALID_TIME_RANGE", "The end must be after the start.")
+        if end - start > MAX_QUERY_RANGE:
+            raise BookingError("RANGE_TOO_LARGE", "A schedule covers at most 7 days.", max_days=7)
+        with self.session_factory() as session:
+            room = session.get(Room, room_id)
+            if room is None:
+                valid_rooms = list(session.scalars(select(Room.id).order_by(Room.id)))
+                raise BookingError(
+                    "ROOM_NOT_FOUND", f"Room {room_id} does not exist.", valid_rooms=valid_rooms
+                )
+            bookings = list(
+                session.scalars(
+                    select(Booking)
+                    .where(Booking.room_id == room_id, *active_bookings_overlapping(start, end))
+                    .order_by(Booking.start_at)
+                )
+            )
+        ranges = []
+        day = start.astimezone(self.timezone).date()
+        last_day = end.astimezone(self.timezone).date()
+        while day <= last_day:
+            window_start = max(start, datetime.combine(day, time(self.opening_hour), self.timezone))
+            window_end = min(end, datetime.combine(day, time(self.closing_hour), self.timezone))
+            day += timedelta(days=1)
+            if window_end <= window_start:
+                continue
+            cursor = window_start
+            for booking in bookings:
+                if booking.end_at <= cursor or booking.start_at >= window_end:
+                    continue
+                if booking.start_at > cursor:
+                    ranges.append(
+                        {
+                            "start": self.to_local_text(cursor),
+                            "end": self.to_local_text(booking.start_at),
+                            "status": "free",
+                        }
+                    )
+                occupied_end = min(booking.end_at, window_end)
+                mine = booking.user_id == viewer_user_id
+                occupied = {
+                    "start": self.to_local_text(max(booking.start_at, cursor)),
+                    "end": self.to_local_text(occupied_end),
+                    "status": "occupied",
+                    "mine": mine,
+                }
+                if mine:
+                    occupied["booking_id"] = booking.id
+                    occupied["title"] = booking.title
+                ranges.append(occupied)
+                cursor = occupied_end
+            if cursor < window_end:
+                ranges.append(
+                    {
+                        "start": self.to_local_text(cursor),
+                        "end": self.to_local_text(window_end),
+                        "status": "free",
+                    }
+                )
+        return {"room": room.id, "capacity": room.capacity, "ranges": ranges}
+
+    def bookings_of(self, user_id: int) -> list[dict]:
+        with self.session_factory() as session:
+            bookings = session.scalars(
+                select(Booking)
+                .where(
+                    Booking.user_id == user_id,
+                    Booking.cancelled_at.is_(None),
+                    Booking.end_at > self.clock(),
+                )
+                .order_by(Booking.start_at)
+            )
+            return [self.describe(booking) for booking in bookings]

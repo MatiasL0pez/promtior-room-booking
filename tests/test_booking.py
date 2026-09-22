@@ -166,3 +166,98 @@ def test_check_cancel_describes_without_writing(service):
     assert service.check_cancel(USER1_ID, booking["booking_id"]) == booking
     with service.session_factory() as session:
         assert session.get(Booking, booking["booking_id"]).cancelled_at is None
+
+
+def test_rooms_lists_the_capacities(service):
+    assert service.rooms() == [
+        {"room": "A", "capacity": 4},
+        {"room": "B", "capacity": 6},
+        {"room": "C", "capacity": 8},
+        {"room": "D", "capacity": 12},
+        {"room": "E", "capacity": 20},
+    ]
+
+
+def test_available_rooms_skip_busy_and_small_rooms(service):
+    service.create(USER1_ID, booking_request(room_id="C", attendees=5))
+    start, end = local("2026-09-23T10:00"), local("2026-09-23T11:00")
+    assert [room["room"] for room in service.available_rooms(start, end)] == ["A", "B", "D", "E"]
+    assert [room["room"] for room in service.available_rooms(start, end, attendees=8)] == ["D", "E"]
+
+
+def test_available_rooms_outside_business_hours_is_an_error(service):
+    with pytest.raises(BookingError) as error:
+        service.available_rooms(local("2026-09-23T20:00"), local("2026-09-23T21:00"))
+    assert error.value.code == "OUTSIDE_BUSINESS_HOURS"
+
+
+def test_schedule_hides_other_peoples_titles(service):
+    service.create(USER1_ID, booking_request(title="Interview"))
+    service.create(
+        USER2_ID,
+        booking_request(
+            start="2026-09-23T14:00", end="2026-09-23T15:00", title="Secret merger talks"
+        ),
+    )
+    schedule = service.room_schedule(
+        USER1_ID, "B", local("2026-09-23T00:00"), local("2026-09-24T00:00")
+    )
+    assert schedule == {
+        "room": "B",
+        "capacity": 6,
+        "ranges": [
+            {"start": "2026-09-23T08:00", "end": "2026-09-23T10:00", "status": "free"},
+            {
+                "start": "2026-09-23T10:00",
+                "end": "2026-09-23T11:30",
+                "status": "occupied",
+                "mine": True,
+                "booking_id": 1,
+                "title": "Interview",
+            },
+            {"start": "2026-09-23T11:30", "end": "2026-09-23T14:00", "status": "free"},
+            {
+                "start": "2026-09-23T14:00",
+                "end": "2026-09-23T15:00",
+                "status": "occupied",
+                "mine": False,
+            },
+            {"start": "2026-09-23T15:00", "end": "2026-09-23T20:00", "status": "free"},
+        ],
+    }
+    assert "Secret" not in str(schedule)
+
+
+def test_schedule_covers_business_hours_of_each_day_without_empty_ranges(service):
+    service.create(USER1_ID, booking_request(start="2026-09-23T08:00", end="2026-09-23T09:00"))
+    schedule = service.room_schedule(
+        USER1_ID, "B", local("2026-09-23T00:00"), local("2026-09-24T23:00")
+    )
+    assert [(entry["start"], entry["end"], entry["status"]) for entry in schedule["ranges"]] == [
+        ("2026-09-23T08:00", "2026-09-23T09:00", "occupied"),
+        ("2026-09-23T09:00", "2026-09-23T20:00", "free"),
+        ("2026-09-24T08:00", "2026-09-24T20:00", "free"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("room_id", "end", "code"),
+    [("Z", "2026-09-24T00:00", "ROOM_NOT_FOUND"), ("B", "2026-10-01T00:00", "RANGE_TOO_LARGE")],
+)
+def test_schedule_errors(service, room_id, end, code):
+    with pytest.raises(BookingError) as error:
+        service.room_schedule(USER1_ID, room_id, local("2026-09-23T00:00"), local(end))
+    assert error.value.code == code
+
+
+def test_bookings_of_lists_only_own_active_future_bookings(service, clock):
+    service.create(
+        USER1_ID, booking_request(start="2026-09-23T15:00", end="2026-09-23T16:00", title="Later")
+    )
+    service.create(USER1_ID, booking_request(title="Earlier"))
+    dropped = service.create(USER1_ID, booking_request(room_id="C", title="Dropped", attendees=2))
+    service.cancel(USER1_ID, dropped["booking_id"])
+    service.create(USER2_ID, booking_request(room_id="D", title="Not mine"))
+    assert [booking["title"] for booking in service.bookings_of(USER1_ID)] == ["Earlier", "Later"]
+    clock.now = local("2026-09-23T12:00")
+    assert [booking["title"] for booking in service.bookings_of(USER1_ID)] == ["Later"]
