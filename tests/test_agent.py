@@ -59,6 +59,33 @@ def test_valid_booking_pauses_and_approval_writes_it(service):
     assert finished.value["messages"][-1].text == "Booked."
 
 
+def test_attendees_sent_as_text_still_need_confirmation(service):
+    agent = build_agent(
+        service,
+        scripted(
+            tool_call("create_booking", **{**CREATE_B, "attendees": "4"}),
+            AIMessage(content="Booked."),
+        ),
+    )
+    paused = run(agent, ask("book B"))
+    [action] = paused.interrupts[0].value["action_requests"]
+    assert action["description"].endswith("4 attendees")
+    assert service.bookings_of(USER1.id) == []
+
+
+def test_attendees_sent_as_a_float_show_as_a_whole_number(service):
+    agent = build_agent(
+        service,
+        scripted(
+            tool_call("create_booking", **{**CREATE_B, "attendees": 4.0}),
+            AIMessage(content="Booked."),
+        ),
+    )
+    paused = run(agent, ask("book B"))
+    [action] = paused.interrupts[0].value["action_requests"]
+    assert action["description"].endswith("· 4 attendees")
+
+
 def test_invalid_booking_does_not_pause_and_writes_nothing(service):
     too_many = {**CREATE_B, "room": "A", "attendees": 30}
     agent = build_agent(
@@ -108,6 +135,7 @@ def test_cancelling_my_booking_pauses_with_its_summary(service):
     assert action["description"] == (
         "Cancel booking 1 · room B · Wed 23 Sep, 10:00–11:30 · Interview with John Doe"
     )
+    assert service.bookings_of(USER1.id) == [mine]
     run(agent, APPROVE)
     assert service.bookings_of(USER1.id) == []
 
@@ -120,3 +148,16 @@ def test_system_prompt_carries_the_user_and_the_office_time(service):
     assert "User1" in system_message.text
     assert "2026-09-22T09:00 (Tuesday)" in system_message.text
     assert "A (4 people)" in system_message.text
+
+
+def test_unexpected_tool_failure_becomes_internal_error(service, monkeypatch, caplog):
+    def broken_bookings_of(user_id):
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(service, "bookings_of", broken_bookings_of)
+    agent = build_agent(
+        service, scripted(tool_call("list_my_bookings"), AIMessage(content="Sorry."))
+    )
+    with caplog.at_level("ERROR"):
+        result = run(agent, ask("what are my bookings"))
+    assert tool_results(result)[0]["error"] == "INTERNAL_ERROR"

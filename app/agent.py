@@ -14,6 +14,7 @@ from langchain.tools import ToolRuntime, tool
 from langchain_core.messages import ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
+from pydantic import ValidationError
 
 from app.auth import CurrentUser
 from app.booking import BookingError, BookingRequest, BookingService
@@ -62,6 +63,10 @@ def booking_request_from(service: BookingService, arguments: dict) -> BookingReq
         title=arguments["title"],
         attendees=arguments["attendees"],
     )
+
+
+def validated_arguments(agent_tool, raw_arguments: dict) -> dict:
+    return agent_tool.tool_call_schema.model_validate(raw_arguments).model_dump()
 
 
 def describe_time_range(service: BookingService, start: datetime, end: datetime) -> str:
@@ -181,6 +186,8 @@ def build_tools(service: BookingService) -> list:
 
 
 def build_agent(service: BookingService, chat_model):
+    tools = build_tools(service)
+    tools_by_name = {agent_tool.name: agent_tool for agent_tool in tools}
     rooms_text = ", ".join(
         f"{room['room']} ({room['capacity']} people)" for room in service.rooms()
     )
@@ -200,22 +207,27 @@ def build_agent(service: BookingService, chat_model):
 
     def create_would_succeed(request) -> bool:
         try:
-            service.check_create(booking_request_from(service, request.tool_call["args"]))
-        except (BookingError, KeyError, AttributeError, TypeError):
+            arguments = validated_arguments(
+                tools_by_name["create_booking"], request.tool_call["args"]
+            )
+            service.check_create(booking_request_from(service, arguments))
+        except (BookingError, ValidationError):
             return False
         return True
 
     def cancel_would_succeed(request) -> bool:
         try:
-            service.check_cancel(
-                request.runtime.context.id, int(request.tool_call["args"]["booking_id"])
+            arguments = validated_arguments(
+                tools_by_name["cancel_booking"], request.tool_call["args"]
             )
-        except (BookingError, KeyError, TypeError, ValueError):
+            service.check_cancel(request.runtime.context.id, arguments["booking_id"])
+        except (BookingError, ValidationError):
             return False
         return True
 
     def describe_create(tool_call, state, runtime) -> str:
-        request = booking_request_from(service, tool_call["args"])
+        arguments = validated_arguments(tools_by_name["create_booking"], tool_call["args"])
+        request = booking_request_from(service, arguments)
         attendees = f"{request.attendees} attendees"
         if request.attendees == 1:
             attendees = "1 attendee"
@@ -223,7 +235,8 @@ def build_agent(service: BookingService, chat_model):
         return f"Book room {request.room_id} · {time_range} · {request.title.strip()} · {attendees}"
 
     def describe_cancel(tool_call, state, runtime) -> str:
-        booking = service.check_cancel(runtime.context.id, int(tool_call["args"]["booking_id"]))
+        arguments = validated_arguments(tools_by_name["cancel_booking"], tool_call["args"])
+        booking = service.check_cancel(runtime.context.id, arguments["booking_id"])
         time_range = describe_time_range(
             service,
             service.parse_local_datetime(booking["start"]),
@@ -250,7 +263,7 @@ def build_agent(service: BookingService, chat_model):
     )
     return create_agent(
         chat_model,
-        tools=build_tools(service),
+        tools=tools,
         middleware=[
             system_prompt,
             booking_errors_as_tool_results,
