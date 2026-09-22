@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -180,3 +180,33 @@ class BookingService:
                 f"Room {request.room_id} was just booked by someone else for that time.",
             ) from None
         return self.describe(booking)
+
+    def check_cancel(self, user_id: int, booking_id: int) -> dict:
+        with self.session_factory() as session:
+            booking = session.get(Booking, booking_id)
+            if booking is None:
+                raise BookingError("BOOKING_NOT_FOUND", f"There is no booking {booking_id}.")
+            if booking.user_id != user_id:
+                raise BookingError("NOT_OWNER", "Only the person who made a booking can cancel it.")
+            if booking.cancelled_at is not None:
+                raise BookingError(
+                    "ALREADY_CANCELLED", f"Booking {booking_id} is already cancelled."
+                )
+            if booking.start_at <= self.clock():
+                raise BookingError("ALREADY_STARTED", f"Booking {booking_id} has already started.")
+            return self.describe(booking)
+
+    def cancel(self, user_id: int, booking_id: int) -> dict:
+        cancelled = self.check_cancel(user_id, booking_id)
+        with self.session_factory.begin() as session:
+            result = session.execute(
+                update(Booking)
+                .where(Booking.id == booking_id, Booking.cancelled_at.is_(None))
+                .values(cancelled_at=self.clock())
+            )
+            if result.rowcount == 0:
+                raise BookingError(
+                    "ALREADY_CANCELLED", f"Booking {booking_id} is already cancelled."
+                )
+            session.execute(delete(BookingSlot).where(BookingSlot.booking_id == booking_id))
+        return cancelled

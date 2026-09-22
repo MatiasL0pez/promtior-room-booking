@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from app.booking import BookingError
-from app.models import Booking
+from app.models import Booking, BookingSlot
 from tests.support import USER1_ID, USER2_ID, booking_request, local
 
 
@@ -111,3 +111,58 @@ def test_unreadable_datetime_is_a_booking_error(service):
     with pytest.raises(BookingError) as error:
         service.parse_local_datetime("tomorrow at ten")
     assert error.value.code == "INVALID_DATETIME"
+
+
+def test_owner_cancels_and_the_slots_become_free(service):
+    booking = service.create(USER1_ID, booking_request())
+    assert service.cancel(USER1_ID, booking["booking_id"]) == booking
+    again = service.create(USER2_ID, booking_request())
+    assert again["start"] == "2026-09-23T10:00"
+
+
+def test_a_cancelled_booking_stays_in_history_without_slots(service):
+    booking = service.create(USER1_ID, booking_request())
+    service.cancel(USER1_ID, booking["booking_id"])
+    with service.session_factory() as session:
+        stored = session.get(Booking, booking["booking_id"])
+        slots = session.scalars(
+            select(BookingSlot).where(BookingSlot.booking_id == booking["booking_id"])
+        ).all()
+    assert stored.cancelled_at is not None
+    assert slots == []
+
+
+def test_only_the_owner_can_cancel(service):
+    booking = service.create(USER1_ID, booking_request())
+    with pytest.raises(BookingError) as error:
+        service.cancel(USER2_ID, booking["booking_id"])
+    assert error.value.code == "NOT_OWNER"
+
+
+def test_an_unknown_booking_cannot_be_cancelled(service):
+    with pytest.raises(BookingError) as error:
+        service.cancel(USER1_ID, 999)
+    assert error.value.code == "BOOKING_NOT_FOUND"
+
+
+def test_a_booking_is_cancelled_once(service):
+    booking = service.create(USER1_ID, booking_request())
+    service.cancel(USER1_ID, booking["booking_id"])
+    with pytest.raises(BookingError) as error:
+        service.cancel(USER1_ID, booking["booking_id"])
+    assert error.value.code == "ALREADY_CANCELLED"
+
+
+def test_a_started_booking_cannot_be_cancelled(service, clock):
+    booking = service.create(USER1_ID, booking_request())
+    clock.now = local("2026-09-23T10:00")
+    with pytest.raises(BookingError) as error:
+        service.cancel(USER1_ID, booking["booking_id"])
+    assert error.value.code == "ALREADY_STARTED"
+
+
+def test_check_cancel_describes_without_writing(service):
+    booking = service.create(USER1_ID, booking_request())
+    assert service.check_cancel(USER1_ID, booking["booking_id"]) == booking
+    with service.session_factory() as session:
+        assert session.get(Booking, booking["booking_id"]).cancelled_at is None
