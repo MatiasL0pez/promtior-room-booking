@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.auth import CurrentUser
 from app.booking import BookingRequest
 
 MONTEVIDEO = ZoneInfo("America/Montevideo")
@@ -31,3 +32,14 @@ def booking_request(
     return BookingRequest(
         room_id=room_id, start=local(start), end=local(end), title=title, attendees=attendees
     )
+
+
+USER1 = CurrentUser(id=USER1_ID, username="User1")
+USER2 = CurrentUser(id=USER2_ID, username="User2")
+
+
+def login_headers(client, username: str) -> dict:
+    response = client.post(
+        "/auth/login", data={"username": username, "password": "TechnicalChallengePromtior"}
+    )
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
