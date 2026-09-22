@@ -22,6 +22,7 @@ pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-m 'not eval'"
 markers = ["eval: talks to the real OpenAI model; needs OPENAI_API_KEY"]
+filterwarnings = ["ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning"]
 
 [tool.ruff]
 line-length = 100
