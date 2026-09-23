@@ -6,63 +6,135 @@
 <title>Room Booking Assistant</title>
 <style>
   :root {
-    --bg: #f6f7fb; --panel: #ffffff; --text: #1d2130; --muted: #6b7185; --border: #e3e6ef;
-    --accent: #4f46e5; --accent-text: #ffffff; --free: #eefbf3; --busy: #e4e7ef;
-    --mine: #e0e7ff; --mine-border: #818cf8; --danger: #b42318;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #11131a; --panel: #1a1d27; --text: #e7e9f1; --muted: #9aa0b4; --border: #2a2e3b;
-      --accent: #818cf8; --accent-text: #11131a; --free: #15271d; --busy: #2b2f3c;
-      --mine: #272c52; --mine-border: #818cf8; --danger: #f97066;
-    }
+    color-scheme: light;
+    --bg: #f4f5f8; --panel: #ffffff; --text: #111827; --muted: #6b7280; --border: #e5e7eb;
+    --grid-line: #eef0f3; --accent: #4f46e5; --accent-hover: #4338ca; --accent-text: #ffffff;
+    --mine: #4f46e5; --mine-text: #ffffff; --busy-a: #e5e7eb; --busy-b: #d1d5db; --danger: #b42318;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--panel); }
-  header h1 { font-size: 16px; margin: 0; }
-  .who { color: var(--muted); font-size: 14px; margin-right: 8px; }
-  button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  header { height: 64px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 100%;
+    max-width: 1440px; margin: 0 auto; padding: 0 20px;
+  }
+  .header-inner > div { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; flex: 1 1 auto; min-width: 0; }
+  .who { color: var(--muted); font-size: 14px; }
+  @media (max-width: 639px) {
+    header h1 { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+  @media (max-width: 399px) {
+    .who { display: none; }
+  }
+  button {
+    font: inherit; height: 40px; padding: 0 16px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); border-radius: 10px; cursor: pointer;
+  }
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   button:disabled { opacity: .5; cursor: default; }
-  input, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  input, textarea {
+    font: inherit; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+  }
+  input { height: 44px; padding: 0 14px; }
   .hidden { display: none !important; }
-  #login { max-width: 360px; margin: 12vh auto; padding: 28px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: grid; gap: 12px; }
-  #login h2 { margin: 0; font-size: 18px; }
+  #login {
+    max-width: 380px; margin: 12vh auto; padding: 32px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 1px 2px rgba(17,24,39,.04);
+    display: grid; gap: 14px;
+  }
+  #login h2 { margin: 0; font-size: 22px; font-weight: 600; }
   #login p { margin: 0; color: var(--muted); font-size: 14px; }
+  #login button.primary { width: 100%; }
   .error { color: var(--danger); font-size: 14px; min-height: 1em; }
-  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; padding: 16px; height: calc(100vh - 58px); }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; min-height: 0; }
-  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-height: 320px; }
-  .bubble { max-width: 85%; padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  main {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    max-width: 1440px; margin: 0 auto; padding: 20px;
+  }
+  @media (min-width: 1024px) {
+    main { height: calc(100vh - 64px); }
+  }
+  @media (max-width: 1023px) {
+    main { grid-template-columns: 1fr; height: auto; }
+  }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(17,24,39,.04); display: flex; flex-direction: column;
+    min-height: 0; overflow: hidden;
+  }
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; min-height: 360px; }
+  .bubble { font-size: 15px; padding: 10px 14px; border-radius: 14px; max-width: 80%; white-space: pre-wrap; overflow-wrap: anywhere; }
   .user { align-self: flex-end; background: var(--accent); color: var(--accent-text); }
-  .assistant { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); }
+  .assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); }
   .thinking { color: var(--muted); font-style: italic; }
-  .card { align-self: flex-start; max-width: 85%; border: 1px solid var(--mine-border); background: var(--mine); border-radius: 12px; padding: 12px 14px; display: grid; gap: 10px; }
+  .card {
+    align-self: flex-start; max-width: 80%; background: var(--panel); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px;
+  }
+  .card .summary { font-size: 15px; }
   .card .actions { display: flex; gap: 8px; }
-  .suggestions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
-  .suggestions button { font-size: 13px; padding: 5px 10px; border-radius: 999px; color: var(--muted); }
-  #composer { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
-  #composer textarea { flex: 1; resize: none; height: 44px; }
-  .schedule-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-  .schedule-head h2 { font-size: 15px; margin: 0; }
-  .legend { display: flex; gap: 14px; padding: 12px 16px 0; color: var(--muted); font-size: 12px; }
-  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--swatch); }
-  .schedule-error { padding: 8px 16px 0; }
-  #grid-wrap { overflow: auto; padding: 10px 16px 16px; }
-  table { border-collapse: separate; border-spacing: 3px; width: 100%; font-size: 12px; }
-  th { color: var(--muted); font-weight: 600; }
-  td.time { color: var(--muted); text-align: right; padding-right: 6px; white-space: nowrap; }
-  td.slot { height: 18px; border-radius: 4px; background: var(--free); }
-  td.slot.occupied { background: var(--busy); }
-  td.slot.mine { background: var(--mine); box-shadow: inset 0 0 0 1px var(--mine-border); }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
+  .suggestions button { height: auto; font-size: 13px; padding: 6px 14px; border-radius: 999px; color: var(--muted); }
+  .suggestions button:hover { background: #f9fafb; }
+  #composer { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+  #composer textarea { flex: 1; height: 48px; resize: none; }
+  .schedule-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .schedule-head h2 { font-size: 16px; font-weight: 600; margin: 0; }
+  .date-nav { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+  .date-nav button { flex: 0 0 auto; }
+  .date-nav .icon-button { width: 40px; padding: 0; }
+  #day { flex: 1 1 auto; min-width: 0; }
+  @media (max-width: 639px) {
+    .date-nav { flex-basis: 100%; }
+  }
+  @media (min-width: 640px) {
+    .date-nav { margin-left: auto; }
+    #day { flex: 0 0 auto; width: 180px; }
+  }
+  .legend { display: flex; align-items: center; gap: 18px; padding: 14px 20px 0; color: var(--muted); font-size: 13px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { display: inline-block; width: 16px; height: 16px; border-radius: 4px; }
+  .swatch.free { background: var(--panel); border: 1px solid var(--border); }
+  .swatch.occupied { background-image: repeating-linear-gradient(45deg, var(--busy-a) 0 6px, var(--busy-b) 6px 12px); }
+  .swatch.mine { background: var(--mine); }
+  .schedule-error { padding: 10px 20px 0; }
+  #grid-wrap { flex: 1; overflow: auto; padding: 12px 20px 20px; }
+  table#grid { border-collapse: collapse; width: 100%; min-width: 560px; table-layout: fixed; }
+  #grid th { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: bottom; }
+  #grid th:first-child, #grid td.time { position: sticky; left: 0; background: var(--panel); z-index: 1; }
+  .room-letter { font-size: 15px; font-weight: 700; }
+  .room-capacity { font-size: 12px; font-weight: 400; color: var(--muted); }
+  #grid td { position: relative; height: 32px; padding: 0; border-top: 1px solid var(--grid-line); vertical-align: top; }
+  #grid tr.half-hour td { border-top: 1px dashed var(--bg); }
+  #grid td.time { text-align: right; padding-right: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  #grid td.slot-free { background: var(--panel); }
+  .booking {
+    position: absolute; inset: 3px; border-radius: 8px; padding: 6px 8px;
+    display: flex; flex-direction: column; justify-content: center; overflow: hidden;
+  }
+  .booking.mine { background: var(--mine); color: var(--mine-text); }
+  .booking.occupied { background-image: repeating-linear-gradient(45deg, var(--busy-a) 0 6px, var(--busy-b) 6px 12px); color: var(--text); }
+  .booking.occupied .booking-title, .booking.occupied .booking-time { opacity: .8; }
+  .booking-title { font-size: 13px; font-weight: 600; }
+  .booking-time { font-size: 12px; }
+  .booking.single .booking-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .booking.multi .booking-title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal; line-height: 1.25;
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Cubo Itaú · Meeting rooms</h1>
-  <div><span class="who" id="who"></span><button id="logout" class="hidden" type="button">Sign out</button></div>
+  <div class="header-inner">
+    <h1>Cubo Itaú · Meeting rooms</h1>
+    <div><span class="who" id="who"></span><button id="logout" class="hidden" type="button">Sign out</button></div>
+  </div>
 </header>
 
 <form id="login">
@@ -83,19 +155,24 @@
       <button type="button">Show my bookings</button>
     </div>
     <form id="composer">
-      <textarea id="input" placeholder="Ask to check, book or cancel a room…" maxlength="1000"></textarea>
+      <textarea id="input" placeholder="Ask about rooms…" maxlength="1000"></textarea>
       <button class="primary" type="submit" id="send">Send</button>
     </form>
   </section>
   <section class="panel">
     <div class="schedule-head">
       <h2>Schedule</h2>
-      <input type="date" id="day">
+      <div class="date-nav">
+        <button type="button" id="prev-day" class="icon-button" aria-label="Previous day">‹</button>
+        <input type="date" id="day">
+        <button type="button" id="today">Today</button>
+        <button type="button" id="next-day" class="icon-button" aria-label="Next day">›</button>
+      </div>
     </div>
     <div class="legend">
-      <span style="--swatch: var(--free)">Free</span>
-      <span style="--swatch: var(--busy)">Occupied</span>
-      <span style="--swatch: var(--mine)">Yours</span>
+      <span class="legend-item"><span class="swatch free"></span>Free</span>
+      <span class="legend-item"><span class="swatch occupied"></span>Occupied</span>
+      <span class="legend-item"><span class="swatch mine"></span>Yours</span>
     </div>
     <div class="error schedule-error" id="schedule-error"></div>
     <div id="grid-wrap"><table id="grid"></table></div>
@@ -197,6 +274,7 @@ function addConfirmation(actions) {
   card.className = "card";
   for (const action of actions) {
     const line = document.createElement("div");
+    line.className = "summary";
     line.textContent = action.summary;
     card.append(line);
   }
@@ -291,6 +369,21 @@ function addHalfHour(text) {
   return `${day}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+function shiftDay(deltaDays) {
+  const current = byId("day").value || officeToday();
+  const date = new Date(current + "T00:00:00Z");
+  date.setTime(date.getTime() + deltaDays * 86400000);
+  byId("day").value = date.toISOString().slice(0, 10);
+  loadSchedule();
+}
+
+byId("prev-day").addEventListener("click", () => shiftDay(-1));
+byId("next-day").addEventListener("click", () => shiftDay(1));
+byId("today").addEventListener("click", () => {
+  byId("day").value = officeToday();
+  loadSchedule();
+});
+
 async function loadSchedule() {
   if (!byId("day").value) byId("day").value = officeToday();
   const day = byId("day").value;
@@ -312,31 +405,88 @@ function renderGrid(rooms, schedules) {
   table.replaceChildren();
   const ranges = schedules[0].ranges;
   if (!ranges.length) return;
+
+  const times = [];
+  const gridEnd = ranges[ranges.length - 1].end;
+  for (let time = ranges[0].start; time < gridEnd; time = addHalfHour(time)) times.push(time);
+
+  const colgroup = document.createElement("colgroup");
+  const timeCol = document.createElement("col");
+  timeCol.style.width = "56px";
+  colgroup.append(timeCol);
+  for (const room of rooms) colgroup.append(document.createElement("col"));
+  table.append(colgroup);
+
   const head = table.insertRow();
   head.append(document.createElement("th"));
   for (const room of rooms) {
     const cell = document.createElement("th");
-    cell.textContent = `${room.room} · ${room.capacity}`;
+    const letter = document.createElement("div");
+    letter.className = "room-letter";
+    letter.textContent = room.room;
+    const capacity = document.createElement("div");
+    capacity.className = "room-capacity";
+    capacity.textContent = `${room.capacity} people`;
+    cell.append(letter, capacity);
     head.append(cell);
   }
-  const end = ranges[ranges.length - 1].end;
-  for (let time = ranges[0].start; time < end; time = addHalfHour(time)) {
+
+  const skipRemaining = schedules.map(() => 0);
+  for (let index = 0; index < times.length; index++) {
+    const time = times[index];
     const row = table.insertRow();
+    const clock = time.slice(11);
+    const isFullHour = clock.endsWith(":00");
+    if (!isFullHour) row.classList.add("half-hour");
     const label = row.insertCell();
     label.className = "time";
-    label.textContent = time.slice(11);
-    for (const schedule of schedules) {
-      const cell = row.insertCell();
-      const range = schedule.ranges.find((candidate) => candidate.start <= time && time < candidate.end);
-      cell.className = "slot";
-      cell.title = "Free";
-      if (range && range.status === "occupied" && range.mine) {
-        cell.classList.add("mine");
-        cell.title = `${range.title} (booking ${range.booking_id})`;
-      } else if (range && range.status === "occupied") {
-        cell.classList.add("occupied");
-        cell.title = "Occupied";
+    label.textContent = isFullHour ? clock : "";
+
+    for (let roomIndex = 0; roomIndex < schedules.length; roomIndex++) {
+      if (skipRemaining[roomIndex] > 0) {
+        skipRemaining[roomIndex]--;
+        continue;
       }
+      const cell = row.insertCell();
+      const range = schedules[roomIndex].ranges.find((candidate) => candidate.start <= time && time < candidate.end);
+      if (!range || range.status !== "occupied") {
+        cell.className = "slot-free";
+        cell.title = "Free";
+        continue;
+      }
+      let span = 1;
+      let cursor = index + 1;
+      while (cursor < times.length && times[cursor] < range.end) {
+        span++;
+        cursor++;
+      }
+      if (span > 1) cell.rowSpan = span;
+      skipRemaining[roomIndex] = span - 1;
+      const rangeLabel = `${range.start.slice(11)}–${range.end.slice(11)}`;
+      const startLabel = range.start.slice(11);
+      const kind = range.mine ? "mine" : "occupied";
+      const titleText = range.mine ? range.title : "Occupied";
+      const block = document.createElement("div");
+      const titleLine = document.createElement("div");
+      titleLine.className = "booking-title";
+      if (span === 1) {
+        block.className = `booking single ${kind}`;
+        titleLine.textContent = `${titleText} · ${startLabel}`;
+        block.append(titleLine);
+      } else {
+        block.className = `booking multi ${kind}`;
+        titleLine.textContent = titleText;
+        const timeLine = document.createElement("div");
+        timeLine.className = "booking-time";
+        timeLine.textContent = rangeLabel;
+        block.append(titleLine, timeLine);
+      }
+      if (range.mine) {
+        cell.title = `${range.title} · ${rangeLabel} (booking ${range.booking_id})`;
+      } else {
+        cell.title = `Occupied · ${rangeLabel}`;
+      }
+      cell.append(block);
     }
   }
 }
