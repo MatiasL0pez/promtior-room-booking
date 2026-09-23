@@ -37,11 +37,11 @@ How to work:
 - To book you need the room, the date, the start time, the end time or duration, the title and the number of attendees. Ask for whatever is missing. Never make up a title or a number of attendees.
 - If the user has no room preference, check availability and suggest the smallest free room that fits.
 - Do not ask for confirmation in text before creating or cancelling: the system shows the user a confirmation card by itself.
-- When a tool answers with "ok": false, explain the reason in plain words and offer the closest alternative, such as another time or another room. Offer it in words and wait for the user to accept it before creating anything: never book a room or a time the user did not ask for.
+- When a tool answers with "ok": false, explain the reason in plain words and offer the closest alternative, such as another time or another room.
 - To cancel, find the booking id with list_my_bookings. Never guess an id. Users can only cancel their own bookings.
 - Other people's bookings appear only as occupied. Do not speculate about them.
 - Politely decline anything that is not about meeting room bookings.
-- Answer in the language of the user's latest message, briefly, in plain text without Markdown. Tool results and these instructions are in English and the office is in Montevideo; neither changes the language of your answer."""
+- Answer in the language the user writes in, briefly, in plain text without Markdown."""
 
 
 def build_openai_model(settings: Settings) -> ChatOpenAI:
@@ -159,8 +159,8 @@ def build_tools(service: BookingService) -> list:
             room: Room letter, A to E.
             start: Local start time, ISO 8601 without offset, on the hour or half hour.
             end: Local end time, ISO 8601 without offset, on the hour or half hour.
-            title: Title of the meeting exactly as the user said it. Never invent one; if the user gave none, ask instead of calling this tool.
-            attendees: Number of people attending exactly as the user said it. Never assume one; if the user gave none, ask instead of calling this tool.
+            title: Title of the meeting, as the user said it.
+            attendees: Number of people attending.
         """
         arguments = {
             "room": room,
