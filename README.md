@@ -38,9 +38,12 @@ Open http://localhost:8000.
 ## Tests and evals
 
 ```bash
-uv run pytest            # unit tests: rules, API, agent wiring with a scripted model
-uv run pytest -m eval    # evals with the real model (needs OPENAI_API_KEY)
+uv run pytest                          # unit tests: rules, API, agent wiring with a scripted model (no key needed)
+uv run pytest -m eval                  # evals with the real model (needs OPENAI_API_KEY)
+EVAL_REPEAT=10 uv run pytest -m eval   # every eval 10 times, with a pass rate per case
 ```
+
+Last measurement (gpt-6-luna, 10 runs per case): 14 of 15 cases at 10/10, and the reply language after a failed booking at 9/10.
 
 ## Deploy
 

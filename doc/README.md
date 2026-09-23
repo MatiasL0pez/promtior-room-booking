@@ -24,8 +24,9 @@ act only with the user's consent. The design follows from those two decisions.
 4. **Consent before writes.** `HumanInTheLoopMiddleware` pauses `create_booking` and
    `cancel_booking`, but only when a dry run (`check_create` / `check_cancel`) says the action will
    succeed. The user never confirms a booking that then fails.
-5. **Evals on behavior.** Unit tests script the model; evals run the real model and assert on the
-   tools it called and on the final database state.
+5. **Evals on behavior.** Unit tests script the model; evals run the real model several times per
+   case (`EVAL_REPEAT`) and assert on the tools it called, the final database state and the reply
+   language, never on wording, so a behavior that fails one time in ten shows up as a rate.
 
 ## Key decisions
 
@@ -38,6 +39,7 @@ act only with the user's consent. The design follows from those two decisions.
 | Typing while a card is pending = reject with that text | "make it 6 people" should just work | forcing a click first |
 | `gpt-6-luna` through the Responses API | cheapest current model with function calling; switchable by an environment variable | a larger model without evidence that it is needed |
 | Per-user message limit | the repository and the password are public | no limit |
+| One language rule as the first instruction, no office location in the prompt | measured: the model stopped answering in the office's language | a longer language rule, or naming the office's language in it (made it worse) |
 
 ## Challenges and how I solved them
 
@@ -61,10 +63,19 @@ act only with the user's consent. The design follows from those two decisions.
   "invalid, do not pause"; the tool's schema then converted `"4"` to `4` and wrote the booking
   without confirmation. The gate now validates the raw arguments with the tool's own schema
   first, so it checks exactly what the tool will execute, and a regression test pins it.
+- **An assistant that answered in the office's language.** Running each eval ten times showed
+  that English requests which could not be booked got a Spanish answer 4 times in 10, and once a
+  Portuguese one. The prompt placed the office in Cubo Itaú, Montevideo, and the model localized
+  its answer to the office instead of to the user. Measuring prompt variants one at a time showed
+  that moving the language rule first helped (9 of 20 to 3 of 20) and that removing the location,
+  which the model never needed, finished the job (0 Spanish or Portuguese answers in the final
+  measurement). The process lesson: a cheaper stand-in model is useful to simulate conversations
+  and catch regressions for free, but only the production model's own failures should drive
+  changes to its prompt.
 - **A model that filled in what the user never said.** One eval run in twenty booked a room for
   a request that never mentioned how many people attend. The system prompt already forbade
   guessing; repeating the rule in the tool's argument descriptions, where the model actually
-  fills the value, fixed it (22 of 22 eval runs since). The confirmation card stays as the
+  fills the value, fixed it (30 of 30 runs of that case in the final measurement). The confirmation card stays as the
   safety net: the user sees the number before anything is written.
 
 ## Assumptions
@@ -79,3 +90,5 @@ zone, `America/Montevideo`. All three are configuration.
 - Tables are created at startup; next step: Alembic migrations.
 - No token streaming; the page shows a "Thinking…" state instead.
 - Recurring bookings and per-user time zones are out of scope.
+- The walkthrough notebook was executed before the final prompt revision; its eval section shows
+  the 11 evals that existed then (there are 15 now, measured in the commit that changed the prompt).
