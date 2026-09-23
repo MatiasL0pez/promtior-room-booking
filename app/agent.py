@@ -54,7 +54,6 @@ def build_openai_model(settings: Settings) -> ChatOpenAI:
         reasoning={"effort": settings.openai_reasoning_effort},
         timeout=30,
         max_retries=2,
-        model_kwargs={"parallel_tool_calls": False},
     )
 
 

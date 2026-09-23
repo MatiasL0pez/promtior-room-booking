@@ -192,6 +192,22 @@ def test_act_on_a_correction_in_the_next_turn(eval_app):
     assert booking["attendees"] == 6
 
 
+def test_act_book_several_days_in_one_confirmation(eval_app):
+    user1 = Conversation(eval_app, "User1")
+    first = user1.say(
+        "quiero reservar la sala d de 11:00 a 13:00 a partir de mañana y por 7 dias seguidos"
+    )
+    assert first["pending_actions"] == []
+    assert user1.tool_calls("create_booking") == []
+    second = user1.say("reunion cliente 8 personas")
+    assert [action["tool"] for action in second["pending_actions"]] == ["create_booking"] * 7
+    user1.decide(approve=True)
+    bookings = eval_app.state.service.bookings_of(USER1_ID)
+    assert sorted((booking["room"], booking["start"]) for booking in bookings) == [
+        ("D", f"2026-09-{day}T11:00") for day in range(23, 30)
+    ]
+
+
 def test_act_cancel_my_own_booking(eval_app):
     eval_app.state.service.create(
         USER1_ID,

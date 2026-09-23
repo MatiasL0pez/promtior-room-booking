@@ -91,4 +91,4 @@ zone, `America/Montevideo`. All three are configuration.
 - No token streaming; the page shows a "Thinking…" state instead.
 - Recurring bookings and per-user time zones are out of scope.
 - The walkthrough notebook was executed before the final prompt revision; its eval section shows
-  the 11 evals that existed then (there are 15 now, measured in the commit that changed the prompt).
+  the 11 evals that existed then (there are 16 now, measured in the commits that changed the prompt and allowed several bookings in one step).

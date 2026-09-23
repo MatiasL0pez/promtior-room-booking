@@ -79,6 +79,35 @@ def test_a_booking_through_chat_waits_for_confirmation(make_client):
     ] == ["B"]
 
 
+def test_several_bookings_in_one_step_wait_for_one_confirmation(make_client):
+    days = ["2026-09-23", "2026-09-24", "2026-09-25"]
+    one_step = AIMessage(
+        content="",
+        tool_calls=[
+            {
+                "name": "create_booking",
+                "args": {**CREATE_B, "start": f"{day}T10:00", "end": f"{day}T11:30"},
+                "id": f"call_{day}",
+            }
+            for day in days
+        ],
+    )
+    client = make_client(one_step, AIMessage(content="Booked all three."))
+    headers = login_headers(client, "User1")
+    paused = send(client, headers, "book B from 10 to 11:30 for three days").json()
+    assert [action["summary"] for action in paused["pending_actions"]] == [
+        "Book room B · Wed 23 Sep, 10:00–11:30 · Interview · 4 attendees",
+        "Book room B · Thu 24 Sep, 10:00–11:30 · Interview · 4 attendees",
+        "Book room B · Fri 25 Sep, 10:00–11:30 · Interview · 4 attendees",
+    ]
+    assert client.get("/bookings/mine", headers=headers).json() == []
+
+    done = decide(client, headers, paused["conversation_id"]).json()
+    assert done["reply"] == "Booked all three."
+    bookings = client.get("/bookings/mine", headers=headers).json()
+    assert [booking["start"] for booking in bookings] == [f"{day}T10:00" for day in days]
+
+
 def test_confirming_twice_books_once(make_client):
     client = make_client(tool_call("create_booking", **CREATE_B), AIMessage(content="Booked."))
     headers = login_headers(client, "User1")

@@ -124,7 +124,8 @@ Built with LangChain `create_agent` (LangGraph runtime) and an OpenAI chat model
 - Reject → the tool does not run.
 - Typing a message while a confirmation is pending counts as a reject whose message is the user's
   text ("make it 11 instead"), so the model adjusts and proposes again.
-- The model makes one tool call per step (`parallel_tool_calls=False`), so a pause always carries a single action.
+- The model may make several tool calls in one step ("book D every day this week"): the pause lists
+  every write that would succeed on one card, and one decision applies to all of them.
 
 ### System prompt
 

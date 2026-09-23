@@ -2,9 +2,8 @@ import json
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
-from pydantic import SecretStr
 
-from app.agent import build_agent, build_openai_model, build_tools
+from app.agent import build_agent, build_tools
 from tests.support import USER1, USER2_ID, booking_request, scripted, tool_call
 
 APPROVE = Command(resume={"decisions": [{"type": "approve"}]})
@@ -155,11 +154,6 @@ def test_system_prompt_carries_the_user_and_the_office_time(service):
     assert "A (4 people)" in system_message.text
     assert "Montevideo" not in system_message.text
     assert "Cubo" not in system_message.text
-
-
-def test_openai_model_makes_one_tool_call_per_step(settings):
-    model = build_openai_model(settings.model_copy(update={"openai_api_key": SecretStr("sk-test")}))
-    assert model.model_kwargs == {"parallel_tool_calls": False}
 
 
 def test_unexpected_tool_failure_becomes_internal_error(service, monkeypatch, caplog):

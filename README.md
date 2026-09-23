@@ -45,7 +45,7 @@ uv run pytest -m eval                  # evals with the real model (needs OPENAI
 EVAL_REPEAT=10 uv run pytest -m eval   # every eval 10 times, with a pass rate per case
 ```
 
-Last measurement (gpt-6-luna, 10 runs per case): 14 of 15 cases at 10/10, and the reply language after a failed booking at 9/10.
+Last measurement (gpt-6-luna, 10 runs per case): 14 of 16 cases at 10/10, including seven bookings confirmed on one card; the reply language after a failed booking and the alternative offered in words at 9/10.
 
 ## Deploy
 
