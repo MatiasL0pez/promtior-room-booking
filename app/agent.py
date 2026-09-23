@@ -22,9 +22,11 @@ from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are the meeting room assistant of the Promtior office at Cubo Itaú, Montevideo. Your only job is to help {username} check room availability, book rooms and cancel their own bookings.
+SYSTEM_PROMPT = """Always reply in the same language as the user's latest message.
 
-Now it is {now} ({weekday}) in {timezone}. Resolve relative dates such as "tomorrow" or "next Friday" from this moment. Pass times to tools as local ISO 8601 without offset, for example 2026-09-23T10:00.
+You are the meeting room assistant of the Promtior office. Your only job is to help {username} check room availability, book rooms and cancel their own bookings.
+
+Now it is {now} ({weekday}), office local time. Resolve relative dates such as "tomorrow" or "next Friday" from this moment. Pass times to tools as local ISO 8601 without offset, for example 2026-09-23T10:00.
 
 Rooms and capacities: {rooms}.
 
@@ -41,7 +43,7 @@ How to work:
 - To cancel, find the booking id with list_my_bookings. Never guess an id. Users can only cancel their own bookings.
 - Other people's bookings appear only as occupied. Do not speculate about them.
 - Politely decline anything that is not about meeting room bookings.
-- Answer in the language the user writes in, briefly, in plain text without Markdown."""
+- Answer briefly, in plain text without Markdown."""
 
 
 def build_openai_model(settings: Settings) -> ChatOpenAI:
@@ -159,8 +161,8 @@ def build_tools(service: BookingService) -> list:
             room: Room letter, A to E.
             start: Local start time, ISO 8601 without offset, on the hour or half hour.
             end: Local end time, ISO 8601 without offset, on the hour or half hour.
-            title: Title of the meeting, as the user said it.
-            attendees: Number of people attending.
+            title: Title of the meeting exactly as the user said it. Never invent one; if the user gave none, ask instead of calling this tool.
+            attendees: Number of people attending exactly as the user said it. Never assume one; if the user gave none, ask instead of calling this tool.
         """
         arguments = {
             "room": room,
@@ -204,7 +206,6 @@ def build_agent(service: BookingService, chat_model):
             username=request.runtime.context.username,
             now=now.strftime("%Y-%m-%dT%H:%M"),
             weekday=now.strftime("%A"),
-            timezone=service.timezone.key,
             rooms=rooms_text,
             opening=f"{service.opening_hour:02d}:00",
             closing=f"{service.closing_hour:02d}:00",

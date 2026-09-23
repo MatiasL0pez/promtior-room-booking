@@ -146,9 +146,15 @@ def test_system_prompt_carries_the_user_and_the_office_time(service):
     run(build_agent(service, model), ask("hello"))
     system_message = model.received[0][0]
     assert system_message.type == "system"
+    assert (
+        system_message.text.splitlines()[0]
+        == "Always reply in the same language as the user's latest message."
+    )
     assert "User1" in system_message.text
     assert "2026-09-22T09:00 (Tuesday)" in system_message.text
     assert "A (4 people)" in system_message.text
+    assert "Montevideo" not in system_message.text
+    assert "Cubo" not in system_message.text
 
 
 def test_openai_model_makes_one_tool_call_per_step(settings):
