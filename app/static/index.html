@@ -239,7 +239,9 @@ function signOut() {
   state.conversationId = null;
   remember("token", null);
   remember("username", null);
+  byId("login").reset();
   byId("messages").replaceChildren();
+  byId("suggestions").classList.remove("hidden");
   byId("grid").replaceChildren();
   byId("day").value = "";
   byId("app").classList.add("hidden");
@@ -344,6 +346,7 @@ function send(text) {
   const message = text.trim();
   if (!message || state.busy) return;
   closePendingCards();
+  byId("suggestions").classList.add("hidden");
   addBubble("user", message);
   talk("/chat/messages", { conversation_id: state.conversationId, message });
 }
