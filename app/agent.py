@@ -159,8 +159,8 @@ def build_tools(service: BookingService) -> list:
             room: Room letter, A to E.
             start: Local start time, ISO 8601 without offset, on the hour or half hour.
             end: Local end time, ISO 8601 without offset, on the hour or half hour.
-            title: Title of the meeting, as the user said it.
-            attendees: Number of people attending.
+            title: Title of the meeting exactly as the user said it. Never invent one; if the user gave none, ask instead of calling this tool.
+            attendees: Number of people attending exactly as the user said it. Never assume one; if the user gave none, ask instead of calling this tool.
         """
         arguments = {
             "room": room,
