@@ -1,10 +1,13 @@
 from datetime import timedelta
+from threading import Barrier, Thread
 
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, ToolMessage
 
+from app.agent import build_agent
+from app.chat import Conversations, NothingToDecide
 from app.main import create_app
-from tests.support import login_headers, scripted, tool_call
+from tests.support import USER1, login_headers, scripted, tool_call
 
 CREATE_B = {
     "room": "B",
@@ -100,6 +103,41 @@ def test_a_decision_without_a_pending_action_is_a_conflict(client, user1_headers
 
 def test_long_messages_are_rejected(client, user1_headers):
     assert send(client, user1_headers, "x" * 1001).status_code == 422
+
+
+def test_concurrent_decisions_on_the_same_conversation_serialize(service):
+    agent = build_agent(
+        service,
+        scripted(
+            tool_call("create_booking", **CREATE_B),
+            AIMessage(content="Booked."),
+            AIMessage(content="Booked again."),
+        ),
+    )
+    conversations = Conversations(agent)
+    conversations.send_message(USER1, "c1", "book B")
+
+    barrier = Barrier(2)
+    outcomes = []
+
+    def decide():
+        barrier.wait()
+        try:
+            outcomes.append(conversations.decide(USER1, "c1", True))
+        except NothingToDecide as error:
+            outcomes.append(error)
+
+    threads = [Thread(target=decide) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    replies = [outcome for outcome in outcomes if isinstance(outcome, dict)]
+    conflicts = [outcome for outcome in outcomes if isinstance(outcome, NothingToDecide)]
+    assert len(replies) == 1
+    assert len(conflicts) == 1
+    assert len(service.bookings_of(USER1.id)) == 1
 
 
 def test_messages_are_rate_limited_per_user(settings, clock):
