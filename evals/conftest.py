@@ -17,6 +17,8 @@ def pytest_terminal_summary(terminalreporter):
     outcomes_by_case = defaultdict(list)
     for outcome in ("passed", "failed", "error"):
         for report in terminalreporter.stats.get(outcome, []):
+            if outcome == "error" and report.when != "setup":
+                continue
             if outcome != "error" and report.when != "call":
                 continue
             if "evals/" not in report.nodeid.replace("\\", "/"):

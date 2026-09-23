@@ -68,10 +68,10 @@ act only with the user's consent. The design follows from those two decisions.
   Portuguese one. The prompt placed the office in Cubo Itaú, Montevideo, and the model localized
   its answer to the office instead of to the user. Measuring prompt variants one at a time showed
   that moving the language rule first helped (9 of 20 to 3 of 20) and that removing the location,
-  which the model never needed, finished the job (0 Spanish or Portuguese answers in the final
-  measurement). The process lesson: a cheaper stand-in model is useful to simulate conversations
-  and catch regressions for free, but only the production model's own failures should drive
-  changes to its prompt.
+  which the model never needed, finished the job (no Spanish or Portuguese answer in the final measurement; the one
+  failure in ten there was an empty reply, a separate and rarer behavior). The process
+  lesson: a cheaper stand-in model is useful to simulate conversations and catch regressions
+  for free, but only the production model's own failures should drive changes to its prompt.
 - **A model that filled in what the user never said.** One eval run in twenty booked a room for
   a request that never mentioned how many people attend. The system prompt already forbade
   guessing; repeating the rule in the tool's argument descriptions, where the model actually
