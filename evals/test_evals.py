@@ -147,6 +147,7 @@ def test_offer_an_alternative_in_words_not_in_a_card(eval_app):
     reply = user1.say("Book room A tomorrow from 12:00 to 13:00 for 10 people, title Workshop")
     assert reply["pending_actions"] == []
     assert reply["reply"]
+    assert user1.tool_calls("list_available_rooms") + user1.tool_calls("get_room_schedule")
     assert eval_app.state.service.bookings_of(USER1_ID) == []
 
 

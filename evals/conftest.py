@@ -15,11 +15,13 @@ def pytest_generate_tests(metafunc):
 
 def pytest_terminal_summary(terminalreporter):
     outcomes_by_case = defaultdict(list)
-    for outcome in ("passed", "failed"):
+    for outcome in ("passed", "failed", "error"):
         for report in terminalreporter.stats.get(outcome, []):
-            if report.when != "call" or "evals/" not in report.nodeid.replace("\\", "/"):
+            if outcome != "error" and report.when != "call":
                 continue
-            case = re.sub(r"-?run\d+", "", report.nodeid.split("::")[-1]).replace("[]", "")
+            if "evals/" not in report.nodeid.replace("\\", "/"):
+                continue
+            case = re.sub(r"run\d+-?", "", report.nodeid.split("::")[-1]).replace("[]", "")
             outcomes_by_case[case].append(outcome == "passed")
     if not outcomes_by_case:
         return
