@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from lingua import Language, LanguageDetectorBuilder
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -7,6 +8,10 @@ from app.main import create_app
 from tests.support import FIXED_NOW, USER1_ID, USER2_ID, FakeClock, booking_request, login_headers
 
 pytestmark = pytest.mark.eval
+
+LANGUAGE_DETECTOR = LanguageDetectorBuilder.from_languages(
+    Language.ENGLISH, Language.SPANISH
+).build()
 
 
 @pytest.fixture
@@ -80,6 +85,23 @@ def test_answer_a_schedule_without_other_peoples_titles(eval_app):
     assert "merger" not in reply["reply"].lower()
 
 
+@pytest.mark.parametrize(
+    ("message", "language"),
+    [
+        ("Which rooms are free tomorrow from 15:00 to 16:00 for 8 people?", Language.ENGLISH),
+        ("¿Qué salas están libres mañana de 15 a 16 para 8 personas?", Language.SPANISH),
+        (
+            "Book room A tomorrow from 12:00 to 13:00 for 10 people, title Workshop",
+            Language.ENGLISH,
+        ),
+    ],
+    ids=["question_in_english", "question_in_spanish", "failed_booking_in_english"],
+)
+def test_reply_in_the_language_of_the_user(eval_app, message, language):
+    reply = Conversation(eval_app, "User1").say(message)
+    assert LANGUAGE_DETECTOR.detect_language_of(reply["reply"]) == language
+
+
 def test_clarify_instead_of_inventing_title_and_attendees(eval_app):
     user1 = Conversation(eval_app, "User1")
     reply = user1.say("Book me a room tomorrow at 10")
@@ -117,6 +139,14 @@ def test_structured_failure_when_the_room_is_too_small(eval_app):
     user1 = Conversation(eval_app, "User1")
     reply = user1.say("Book room A tomorrow from 10:00 to 11:00 for 30 people, title All hands")
     assert reply["pending_actions"] == []
+    assert eval_app.state.service.bookings_of(USER1_ID) == []
+
+
+def test_offer_an_alternative_in_words_not_in_a_card(eval_app):
+    user1 = Conversation(eval_app, "User1")
+    reply = user1.say("Book room A tomorrow from 12:00 to 13:00 for 10 people, title Workshop")
+    assert reply["pending_actions"] == []
+    assert reply["reply"]
     assert eval_app.state.service.bookings_of(USER1_ID) == []
 
 
