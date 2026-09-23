@@ -81,13 +81,17 @@ def describe_time_range(service: BookingService, start: datetime, end: datetime)
 
 @wrap_tool_call
 def booking_errors_as_tool_results(request, handler):
+    thread_id = request.runtime.config.get("configurable", {}).get("thread_id")
+    name = request.tool_call["name"]
     try:
-        return handler(request)
+        result = handler(request)
+        logger.info("thread=%s tool=%s ok", thread_id, name)
+        return result
     except BookingError as error:
-        logger.info("Tool %s refused: %s", request.tool_call["name"], error.code)
+        logger.info("thread=%s Tool %s refused: %s", thread_id, name, error.code)
         result = error.as_dict()
     except Exception:
-        logger.exception("Tool %s failed", request.tool_call["name"])
+        logger.exception("thread=%s Tool %s failed", thread_id, name)
         result = {
             "ok": False,
             "error": "INTERNAL_ERROR",
@@ -96,7 +100,7 @@ def booking_errors_as_tool_results(request, handler):
     return ToolMessage(
         content=json.dumps(result),
         tool_call_id=request.tool_call["id"],
-        name=request.tool_call["name"],
+        name=name,
         status="error",
     )
 
