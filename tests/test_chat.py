@@ -119,6 +119,11 @@ def test_long_messages_are_rejected(client, user1_headers):
     assert send(client, user1_headers, "x" * 1001).status_code == 422
 
 
+def test_empty_conversation_ids_are_rejected(client, user1_headers):
+    assert send(client, user1_headers, "hi", conversation_id="").status_code == 422
+    assert decide(client, user1_headers, "").status_code == 422
+
+
 def test_concurrent_decisions_on_the_same_conversation_serialize(service):
     agent = build_agent(
         service,

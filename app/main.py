@@ -20,12 +20,12 @@ INDEX_PAGE = Path(__file__).parent / "static" / "index.html"
 
 
 class MessageIn(BaseModel):
-    conversation_id: str | None = Field(default=None, max_length=64)
+    conversation_id: str | None = Field(default=None, min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
 
 
 class DecisionIn(BaseModel):
-    conversation_id: str = Field(max_length=64)
+    conversation_id: str = Field(min_length=1, max_length=64)
     approve: bool
 
 
