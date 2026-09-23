@@ -124,7 +124,7 @@ Built with LangChain `create_agent` (LangGraph runtime) and an OpenAI chat model
 - Reject → the tool does not run.
 - Typing a message while a confirmation is pending counts as a reject whose message is the user's
   text ("make it 11 instead"), so the model adjusts and proposes again.
-- One user decision applies to every action pending in that step.
+- The model makes one tool call per step (`parallel_tool_calls=False`), so a pause always carries a single action.
 
 ### System prompt
 
