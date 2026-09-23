@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
+import openai
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -73,6 +74,14 @@ def create_app(settings: Settings | None = None, chat_model=None, clock=None) ->
         if error.code.endswith("NOT_FOUND"):
             return JSONResponse(error.as_dict(), status_code=404)
         return JSONResponse(error.as_dict(), status_code=400)
+
+    @app.exception_handler(openai.APIError)
+    def model_outage_response(request, error: openai.APIError) -> JSONResponse:
+        detail = (
+            f"The language model could not answer ({type(error).__name__}). "
+            "Check OPENAI_API_KEY and try again."
+        )
+        return JSONResponse({"detail": detail}, status_code=502)
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:

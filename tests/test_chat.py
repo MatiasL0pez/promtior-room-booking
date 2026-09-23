@@ -1,13 +1,27 @@
 from datetime import timedelta
 from threading import Barrier, Thread
 
+import httpx
+import openai
 from fastapi.testclient import TestClient
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 
 from app.agent import build_agent
 from app.chat import Conversations, NothingToDecide
 from app.main import create_app
 from tests.support import USER1, login_headers, scripted, tool_call
+
+
+class UnavailableChatModel(GenericFakeChatModel):
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        raise openai.APIConnectionError(
+            request=httpx.Request("POST", "https://api.openai.com/v1/responses")
+        )
+
 
 CREATE_B = {
     "room": "B",
@@ -138,6 +152,16 @@ def test_concurrent_decisions_on_the_same_conversation_serialize(service):
     assert len(replies) == 1
     assert len(conflicts) == 1
     assert len(service.bookings_of(USER1.id)) == 1
+
+
+def test_model_outages_answer_502(settings, clock):
+    client = TestClient(
+        create_app(settings, chat_model=UnavailableChatModel(messages=iter([])), clock=clock)
+    )
+    headers = login_headers(client, "User1")
+    response = send(client, headers, "book B")
+    assert response.status_code == 502
+    assert "OPENAI_API_KEY" in response.json()["detail"]
 
 
 def test_messages_are_rate_limited_per_user(settings, clock):
