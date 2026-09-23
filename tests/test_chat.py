@@ -23,6 +23,14 @@ class UnavailableChatModel(GenericFakeChatModel):
         )
 
 
+class BrokenChatModel(GenericFakeChatModel):
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        raise RuntimeError("unexpected failure")
+
+
 CREATE_B = {
     "room": "B",
     "start": "2026-09-23T10:00",
@@ -166,7 +174,32 @@ def test_model_outages_answer_502(settings, clock):
     headers = login_headers(client, "User1")
     response = send(client, headers, "book B")
     assert response.status_code == 502
-    assert "OPENAI_API_KEY" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "The assistant is not available right now. Try again in a moment."
+    )
+
+
+def test_unexpected_errors_answer_500_with_a_plain_message(settings, clock):
+    app = create_app(settings, chat_model=BrokenChatModel(messages=iter([])), clock=clock)
+    client = TestClient(app, raise_server_exceptions=False)
+    headers = login_headers(client, "User1")
+    response = send(client, headers, "book B")
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Something went wrong on our side. Try again in a moment."
+
+
+def test_a_request_that_needs_too_many_steps_gets_a_plain_reply(make_client):
+    looping = [tool_call("list_my_bookings") for _ in range(6)]
+    client = make_client(*looping, AIMessage(content="Still here."))
+    headers = login_headers(client, "User1")
+    stopped = send(client, headers, "book D every day this week").json()
+    assert stopped["reply"] == (
+        "That needed more steps than I can take in one message. Try asking for fewer things at once."
+    )
+    assert stopped["pending_actions"] == []
+
+    after = send(client, headers, "hi", stopped["conversation_id"]).json()
+    assert after["reply"] == "Still here."
 
 
 def test_messages_are_rate_limited_per_user(settings, clock):

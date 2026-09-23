@@ -1,12 +1,16 @@
+import logging
 from collections import defaultdict, deque
 from datetime import timedelta
 from threading import Lock
 from uuid import uuid4
 
+from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
 from langchain_core.messages import AIMessage
 from langgraph.types import Command
 
 from app.auth import CurrentUser
+
+logger = logging.getLogger(__name__)
 
 
 class NothingToDecide(Exception):
@@ -39,8 +43,7 @@ class Conversations:
                 agent_input = Command(resume={"decisions": [rejection] * action_count})
             else:
                 agent_input = {"messages": [{"role": "user", "content": message}]}
-            result = self.agent.invoke(agent_input, config, context=user, version="v2")
-        return self.reply(conversation_id, result)
+            return self.answer(user, conversation_id, agent_input)
 
     def decide(self, user: CurrentUser, conversation_id: str, approve: bool) -> dict:
         config = thread_config(user, conversation_id)
@@ -52,15 +55,23 @@ class Conversations:
             if approve:
                 decision = {"type": "approve"}
             action_count = len(pending[0].value["action_requests"])
-            result = self.agent.invoke(
-                Command(resume={"decisions": [decision] * action_count}),
-                config,
-                context=user,
-                version="v2",
-            )
-        return self.reply(conversation_id, result)
+            agent_input = Command(resume={"decisions": [decision] * action_count})
+            return self.answer(user, conversation_id, agent_input)
 
-    def reply(self, conversation_id: str, result) -> dict:
+    def answer(self, user: CurrentUser, conversation_id: str, agent_input) -> dict:
+        config = thread_config(user, conversation_id)
+        try:
+            result = self.agent.invoke(agent_input, config, context=user, version="v2")
+        except ModelCallLimitExceededError:
+            logger.warning(
+                "thread=%s stopped at the model call limit", config["configurable"]["thread_id"]
+            )
+            return {
+                "conversation_id": conversation_id,
+                "reply": "That needed more steps than I can take in one message. "
+                "Try asking for fewer things at once.",
+                "pending_actions": [],
+            }
         pending_actions = []
         for interrupt in result.interrupts:
             for action in interrupt.value["action_requests"]:

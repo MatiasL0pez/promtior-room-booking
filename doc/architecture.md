@@ -76,7 +76,7 @@ sequenceDiagram
 | `system_prompt` (`@dynamic_prompt`) | before each model call | rooms, capacities, office date and time, rules, the user's name |
 | `booking_errors_as_tool_results` (`@wrap_tool_call`) | around each tool | `BookingError` → structured tool result; any other exception → `INTERNAL_ERROR`, logged |
 | `HumanInTheLoopMiddleware` | after each model call | pauses `create_booking` / `cancel_booking` only when a dry run on the schema-validated arguments passes |
-| `ModelCallLimitMiddleware(run_limit=6)` | per user message | stops a runaway loop |
+| `ModelCallLimitMiddleware(run_limit=6)` | per user message | stops a runaway loop; the user gets a plain reply asking for fewer things at once |
 
 ## Where each guarantee lives
 

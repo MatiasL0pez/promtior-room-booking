@@ -18,6 +18,8 @@ from app.db import create_session_factory, seed
 
 INDEX_PAGE = Path(__file__).parent / "static" / "index.html"
 
+logger = logging.getLogger(__name__)
+
 
 class MessageIn(BaseModel):
     conversation_id: str | None = Field(default=None, min_length=1, max_length=64)
@@ -77,11 +79,14 @@ def create_app(settings: Settings | None = None, chat_model=None, clock=None) ->
 
     @app.exception_handler(openai.APIError)
     def model_outage_response(request, error: openai.APIError) -> JSONResponse:
-        detail = (
-            f"The language model could not answer ({type(error).__name__}). "
-            "Check OPENAI_API_KEY and try again."
-        )
+        logger.error("The language model could not answer: %s: %s", type(error).__name__, error)
+        detail = "The assistant is not available right now. Try again in a moment."
         return JSONResponse({"detail": detail}, status_code=502)
+
+    @app.exception_handler(Exception)
+    def unexpected_error_response(request, error: Exception) -> JSONResponse:
+        detail = "Something went wrong on our side. Try again in a moment."
+        return JSONResponse({"detail": detail}, status_code=500)
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:

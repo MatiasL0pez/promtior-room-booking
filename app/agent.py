@@ -274,7 +274,7 @@ def build_agent(service: BookingService, chat_model):
             system_prompt,
             booking_errors_as_tool_results,
             confirmation_gate,
-            ModelCallLimitMiddleware(run_limit=6, exit_behavior="end"),
+            ModelCallLimitMiddleware(run_limit=6, exit_behavior="error"),
         ],
         context_schema=CurrentUser,
         checkpointer=InMemorySaver(),
