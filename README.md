@@ -2,18 +2,20 @@
 
 [![CI](https://github.com/MatiasL0pez/promtior-room-booking/actions/workflows/ci.yml/badge.svg)](https://github.com/MatiasL0pez/promtior-room-booking/actions/workflows/ci.yml)
 
-A chatbot that books the meeting rooms of the Cubo Itaú office through tool calling — the
+A chatbot that books the meeting rooms of the Cubo Itaú office through tool calling, built for the
 Promtior AI Engineer technical challenge.
 
-**Live demo:** https://promtior-room-booking-production.up.railway.app — sign in as `User1` or
-`User2`, password `TechnicalChallengePromtior`. API documentation at
+**Live demo:** https://promtior-room-booking-production.up.railway.app (sign in as `User1` or
+`User2`, password `TechnicalChallengePromtior`). API documentation at
 [`/docs`](https://promtior-room-booking-production.up.railway.app/docs).
 
 ## What it does
 
-- Checks which rooms are free for a time range, shows a room's schedule, lists your bookings.
+- Checks which rooms are free for a time range, shows a room's schedule, and lists your upcoming
+  bookings under the reply.
 - Books a room (title and attendees required) and cancels your own bookings, always after you
-  confirm on a card.
+  confirm on a card. Several bookings in one message ("room D from 11 to 13 for the next 7 days")
+  arrive on one card with a single Confirm.
 - Enforces every rule in code and in the database: five rooms A–E with their capacity, 30-minute
   slots, at most 3 hours, no overlaps, business hours.
 
@@ -21,7 +23,7 @@ Promtior AI Engineer technical challenge.
 
 FastAPI → LangChain `create_agent` (LangGraph runtime, OpenAI `gpt-6-luna`) → five tools →
 `BookingService` → SQLite or Postgres. The user reaches the tools through runtime context, never
-as an argument the model could forge; writes pause for confirmation only when a dry run says
+as an argument the model could forge. Writes pause for confirmation only when a dry run says
 they will succeed. Details in [doc/architecture.md](doc/architecture.md), the reasoning in
 [doc/README.md](doc/README.md), and every technology with runnable code in
 [doc/walkthrough.ipynb](doc/walkthrough.ipynb).
@@ -45,7 +47,9 @@ uv run pytest -m eval                  # evals with the real model (needs OPENAI
 EVAL_REPEAT=10 uv run pytest -m eval   # every eval 10 times, with a pass rate per case
 ```
 
-Last measurement (gpt-6-luna, 10 runs per case): 14 of 16 cases at 10/10, including seven bookings confirmed on one card; the reply language after a failed booking and the alternative offered in words at 9/10. A 17th case added later (listing your bookings on screen without repeating them in the reply) measured 10/10 on its own.
+Last measurement (gpt-6-luna, 10 runs per case, commit `5b77ad6`): 14 of 17 cases at 10/10. Three
+cases at 9/10: seven bookings confirmed on one card, the alternative offered in words, and the reply
+language after a failed booking.
 
 ## Deploy
 

@@ -218,7 +218,9 @@ def test_act_book_several_days_in_one_confirmation(eval_app):
     assert first["pending_actions"] == []
     assert user1.tool_calls("create_booking") == []
     second = user1.say("reunion cliente 8 personas")
-    assert [action["tool"] for action in second["pending_actions"]] == ["create_booking"] * 7
+    assert [action["tool"] for action in second["pending_actions"]] == ["create_booking"] * 7, (
+        second["reply"]
+    )
     user1.decide(approve=True)
     bookings = eval_app.state.service.bookings_of(USER1_ID)
     assert sorted((booking["room"], booking["start"]) for booking in bookings) == [

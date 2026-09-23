@@ -6,14 +6,14 @@
 
 ```mermaid
 flowchart LR
-    user([User]) --> ui[Web page<br/>static HTML + JS]
+    user([User]) --> ui[Web page<br/>static HTML + JS<br/>chat · confirmation cards<br/>day schedule]
     ui -- "JWT · JSON" --> api[FastAPI]
     subgraph backend [Backend · one container on Railway]
         api --> auth[Auth<br/>Argon2 + JWT]
         api --> chat[Conversations<br/>thread per user · rate limit]
         chat --> agent[LangChain create_agent<br/>LangGraph runtime]
         agent --> middleware[Middleware<br/>dynamic prompt · tool errors ·<br/>confirmation gate · call limit]
-        agent --> tools[5 tools]
+        agent --> tools[5 tools<br/>list_available_rooms<br/>get_room_schedule<br/>list_my_bookings<br/>create_booking<br/>cancel_booking]
         tools --> service[BookingService<br/>every booking rule]
         middleware -- dry-run checks --> service
         api -- read-only REST --> service
@@ -74,9 +74,9 @@ sequenceDiagram
 | Middleware | Hook | What it does |
 |---|---|---|
 | `system_prompt` (`@dynamic_prompt`) | before each model call | rooms, capacities, office date and time, rules, the user's name |
-| `booking_errors_as_tool_results` (`@wrap_tool_call`) | around each tool | `BookingError` → structured tool result; any other exception → `INTERNAL_ERROR`, logged |
+| `booking_errors_as_tool_results` (`@wrap_tool_call`) | around each tool | `BookingError` → structured tool result, any other exception → `INTERNAL_ERROR` (logged) |
 | `HumanInTheLoopMiddleware` | after each model call | pauses `create_booking` / `cancel_booking` only when a dry run on the schema-validated arguments passes |
-| `ModelCallLimitMiddleware(run_limit=6)` | per user message | stops a runaway loop; the user gets a plain reply asking for fewer things at once |
+| `ModelCallLimitMiddleware(run_limit=6)` | per user message | stops a runaway loop, and the user gets a plain reply asking for fewer things at once |
 
 ## Where each guarantee lives
 
@@ -85,6 +85,6 @@ sequenceDiagram
 | No double booking, even concurrently | primary key `(room_id, slot_start)` |
 | Capacity, 30-minute alignment, 3 hours, business hours, title | `BookingService.check_create` |
 | Only the owner cancels | `BookingService.check_cancel` with the user from runtime context |
-| Nobody acts as another user | the user is never a tool argument; threads are keyed by user on the server |
+| Nobody acts as another user | the user is never a tool argument, and threads are keyed by user on the server |
 | No write without the user's consent | `HumanInTheLoopMiddleware` + `/chat/decisions` |
 | No cross-user prompt injection through titles | schedules hide other users' titles |
