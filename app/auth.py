@@ -41,4 +41,8 @@ def read_access_token(token: str, secret: str) -> CurrentUser | None:
         claims = jwt.decode(token, secret, algorithms=["HS256"])
     except jwt.InvalidTokenError:
         return None
+    if "sub" not in claims or "username" not in claims:
+        return None
+    if not str(claims["sub"]).isdigit():
+        return None
     return CurrentUser(id=int(claims["sub"]), username=claims["username"])

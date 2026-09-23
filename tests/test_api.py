@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 
 from app.auth import CurrentUser, create_access_token
@@ -54,6 +55,16 @@ def test_me_returns_the_logged_in_user(client, user1_headers):
 )
 def test_expired_or_foreign_tokens_are_rejected(client, secret, lifetime):
     token = create_access_token(CurrentUser(id=1, username="User1"), secret, lifetime)
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+
+
+def test_token_missing_username_is_rejected(client):
+    token = jwt.encode(
+        {"sub": "1", "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        "test-secret-long-enough-for-hs256-signing",
+        algorithm="HS256",
+    )
     response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
 
