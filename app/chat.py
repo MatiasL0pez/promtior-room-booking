@@ -80,13 +80,14 @@ class Conversations:
             for action in interrupt.value["action_requests"]:
                 pending_actions.append({"tool": action["name"], "summary": action["description"]})
         bookings = None
-        for message in result.value["messages"][earlier_message_count:]:
-            if (
-                isinstance(message, ToolMessage)
-                and message.name == "list_my_bookings"
-                and message.status == "success"
-            ):
-                bookings = json.loads(message.content)["bookings"]
+        if not pending_actions:
+            for message in result.value["messages"][earlier_message_count:]:
+                if (
+                    isinstance(message, ToolMessage)
+                    and message.name == "list_my_bookings"
+                    and message.status == "success"
+                ):
+                    bookings = json.loads(message.content)["bookings"]
         text = ""
         last_message = result.value["messages"][-1]
         if isinstance(last_message, AIMessage):

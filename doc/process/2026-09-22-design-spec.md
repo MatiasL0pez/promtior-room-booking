@@ -147,7 +147,8 @@ plain text, and to decline anything outside room booking.
 - `POST /auth/login` → JWT (HS256, 8 h). Users seeded with hashed passwords.
 - `POST /chat/messages` `{conversation_id?, message}` and `POST /chat/decisions`
   `{conversation_id, approve}` → `{conversation_id, reply, pending_actions: [{tool, summary}], bookings}`.
-  `bookings` is the result of `list_my_bookings` when the model called it in that turn (else `null`);
+  `bookings` is the result of `list_my_bookings` when the model called it in that turn and nothing
+  waits for confirmation (else `null`: when a card is pending, the card is what the user needs);
   the page lists it under the reply, so the model answers in one sentence instead of repeating it.
   A decision with no pending action → 409.
 - `GET /auth/me` → the logged-in user, so the UI can check a stored token.

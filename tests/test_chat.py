@@ -120,6 +120,15 @@ def test_listing_my_bookings_sends_them_as_data(make_client):
     ] == [("B", "2026-09-23T10:00", "Interview with John Doe")]
 
 
+def test_bookings_looked_up_to_cancel_one_are_not_sent_with_the_card(make_client):
+    client = make_client(tool_call("list_my_bookings"), tool_call("cancel_booking", booking_id=1))
+    client.app.state.service.create(USER1.id, booking_request())
+    headers = login_headers(client, "User1")
+    paused = send(client, headers, "cancel my booking tomorrow in room B").json()
+    assert [action["tool"] for action in paused["pending_actions"]] == ["cancel_booking"]
+    assert paused["bookings"] is None
+
+
 def test_confirming_twice_books_once(make_client):
     client = make_client(tool_call("create_booking", **CREATE_B), AIMessage(content="Booked."))
     headers = login_headers(client, "User1")
