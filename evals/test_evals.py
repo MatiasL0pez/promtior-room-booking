@@ -116,6 +116,24 @@ def test_clarify_the_number_of_attendees(eval_app):
     assert user1.tool_calls("create_booking") == []
 
 
+def test_list_my_bookings_on_screen_without_repeating_them(eval_app):
+    for day in ("2026-09-23", "2026-09-24"):
+        eval_app.state.service.create(
+            USER1_ID,
+            booking_request(
+                room_id="C",
+                start=f"{day}T15:00",
+                end=f"{day}T17:00",
+                title="Quarterly planning",
+                attendees=6,
+            ),
+        )
+    user1 = Conversation(eval_app, "User1")
+    reply = user1.say("Show my bookings")
+    assert len(reply["bookings"]) == 2
+    assert "Quarterly planning" not in reply["reply"]
+
+
 def test_refuse_anything_outside_room_booking(eval_app):
     user1 = Conversation(eval_app, "User1")
     reply = user1.say("Write me a poem about the sea")

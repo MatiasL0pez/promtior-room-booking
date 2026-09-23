@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import defaultdict, deque
 from datetime import timedelta
@@ -5,7 +6,7 @@ from threading import Lock
 from uuid import uuid4
 
 from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.types import Command
 
 from app.auth import CurrentUser
@@ -60,6 +61,7 @@ class Conversations:
 
     def answer(self, user: CurrentUser, conversation_id: str, agent_input) -> dict:
         config = thread_config(user, conversation_id)
+        earlier_message_count = len(self.agent.get_state(config).values.get("messages", []))
         try:
             result = self.agent.invoke(agent_input, config, context=user, version="v2")
         except ModelCallLimitExceededError:
@@ -71,11 +73,20 @@ class Conversations:
                 "reply": "That needed more steps than I can take in one message. "
                 "Try asking for fewer things at once.",
                 "pending_actions": [],
+                "bookings": None,
             }
         pending_actions = []
         for interrupt in result.interrupts:
             for action in interrupt.value["action_requests"]:
                 pending_actions.append({"tool": action["name"], "summary": action["description"]})
+        bookings = None
+        for message in result.value["messages"][earlier_message_count:]:
+            if (
+                isinstance(message, ToolMessage)
+                and message.name == "list_my_bookings"
+                and message.status == "success"
+            ):
+                bookings = json.loads(message.content)["bookings"]
         text = ""
         last_message = result.value["messages"][-1]
         if isinstance(last_message, AIMessage):
@@ -84,6 +95,7 @@ class Conversations:
             "conversation_id": conversation_id,
             "reply": text,
             "pending_actions": pending_actions,
+            "bookings": bookings,
         }
 
 

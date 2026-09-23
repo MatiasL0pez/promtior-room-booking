@@ -79,6 +79,14 @@
   }
   .card .summary { font-size: 15px; }
   .card .actions { display: flex; gap: 8px; }
+  .bookings-card {
+    align-self: flex-start; flex-shrink: 0; max-width: 100%; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .booking-row { padding: 8px 14px; border-top: 1px solid var(--grid-line); }
+  .booking-row:first-child { border-top: none; }
+  .booking-row-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .booking-row-details { font-size: 13px; color: var(--muted); }
   .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
   .suggestions button { height: auto; font-size: 13px; padding: 6px 14px; border-radius: 999px; color: var(--muted); }
   .suggestions button:hover { background: #f9fafb; }
@@ -308,6 +316,33 @@ function addConfirmation(actions) {
   scrollToBottom();
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function addBookingsList(bookings) {
+  const card = document.createElement("div");
+  card.className = "bookings-card";
+  for (const booking of bookings) {
+    const date = new Date(`${booking.start.slice(0, 10)}T00:00:00Z`);
+    const day = `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
+    const time = `${booking.start.slice(11, 16)}–${booking.end.slice(11, 16)}`;
+    let attendees = `${booking.attendees} attendees`;
+    if (booking.attendees === 1) attendees = "1 attendee";
+    const title = document.createElement("div");
+    title.className = "booking-row-title";
+    title.textContent = booking.title;
+    const details = document.createElement("div");
+    details.className = "booking-row-details";
+    details.textContent = `${day} · ${time} · Room ${booking.room} · ${attendees}`;
+    const row = document.createElement("div");
+    row.className = "booking-row";
+    row.append(title, details);
+    card.append(row);
+  }
+  byId("messages").append(card);
+  scrollToBottom();
+}
+
 function closePendingCards() {
   for (const button of document.querySelectorAll(".card button")) button.disabled = true;
 }
@@ -325,6 +360,7 @@ async function talk(path, payload) {
     state.conversationId = reply.conversation_id;
     thinking.remove();
     if (reply.reply) addBubble("assistant", reply.reply);
+    if (reply.bookings && reply.bookings.length) addBookingsList(reply.bookings);
     if (reply.pending_actions.length) addConfirmation(reply.pending_actions);
     loadSchedule();
   } catch (error) {

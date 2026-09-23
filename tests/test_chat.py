@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from app.agent import build_agent
 from app.chat import Conversations, NothingToDecide
 from app.main import create_app
-from tests.support import USER1, login_headers, scripted, tool_call
+from tests.support import USER1, booking_request, login_headers, scripted, tool_call
 
 
 class UnavailableChatModel(GenericFakeChatModel):
@@ -73,6 +73,7 @@ def test_a_booking_through_chat_waits_for_confirmation(make_client):
         "conversation_id": paused["conversation_id"],
         "reply": "Booked.",
         "pending_actions": [],
+        "bookings": None,
     }
     assert [
         booking["room"] for booking in client.get("/bookings/mine", headers=headers).json()
@@ -106,6 +107,17 @@ def test_several_bookings_in_one_step_wait_for_one_confirmation(make_client):
     assert done["reply"] == "Booked all three."
     bookings = client.get("/bookings/mine", headers=headers).json()
     assert [booking["start"] for booking in bookings] == [f"{day}T10:00" for day in days]
+
+
+def test_listing_my_bookings_sends_them_as_data(make_client):
+    client = make_client(tool_call("list_my_bookings"), AIMessage(content="Here they are."))
+    client.app.state.service.create(USER1.id, booking_request())
+    headers = login_headers(client, "User1")
+    reply = send(client, headers, "show my bookings").json()
+    assert reply["reply"] == "Here they are."
+    assert [
+        (booking["room"], booking["start"], booking["title"]) for booking in reply["bookings"]
+    ] == [("B", "2026-09-23T10:00", "Interview with John Doe")]
 
 
 def test_confirming_twice_books_once(make_client):

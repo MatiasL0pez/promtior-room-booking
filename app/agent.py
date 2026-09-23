@@ -41,6 +41,7 @@ How to work:
 - Do not ask for confirmation in text before creating or cancelling: the system shows the user a confirmation card by itself.
 - When a tool answers with "ok": false, explain the reason in plain words and offer the closest alternative, such as another time or another room.
 - To cancel, find the booking id with list_my_bookings. Never guess an id. Users can only cancel their own bookings.
+- The page shows every booking that list_my_bookings returns as a list below your reply, so reply in one short sentence that does not repeat their titles, dates or times, for example "You have 2 upcoming bookings."
 - Other people's bookings appear only as occupied. Do not speculate about them.
 - Politely decline anything that is not about meeting room bookings.
 - Answer briefly, in plain text without Markdown."""
@@ -142,7 +143,7 @@ def build_tools(service: BookingService) -> list:
 
     @tool
     def list_my_bookings(runtime: ToolRuntime[CurrentUser]) -> dict:
-        """List the current user's upcoming bookings with their ids."""
+        """List the current user's upcoming bookings with their ids. The page shows every booking that list_my_bookings returns as a list below your reply, so reply in one short sentence that does not repeat their titles, dates or times, for example "You have 2 upcoming bookings." """
         return {"ok": True, "bookings": service.bookings_of(runtime.context.id)}
 
     @tool(parse_docstring=True)
