@@ -5,7 +5,9 @@
 A chatbot that books the meeting rooms of the Cubo Itaú office through tool calling — the
 Promtior AI Engineer technical challenge.
 
-Sign in as `User1` or `User2`, password `TechnicalChallengePromtior`. API documentation at `/docs`.
+**Live demo:** https://promtior-room-booking-production.up.railway.app — sign in as `User1` or
+`User2`, password `TechnicalChallengePromtior`. API documentation at
+[`/docs`](https://promtior-room-booking-production.up.railway.app/docs).
 
 ## What it does
 
