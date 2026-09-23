@@ -152,6 +152,8 @@ function signOut() {
   remember("token", null);
   remember("username", null);
   byId("messages").replaceChildren();
+  byId("grid").replaceChildren();
+  byId("day").value = "";
   byId("app").classList.add("hidden");
   byId("logout").classList.add("hidden");
   byId("login").classList.remove("hidden");
