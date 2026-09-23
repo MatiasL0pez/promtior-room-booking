@@ -61,6 +61,11 @@ act only with the user's consent. The design follows from those two decisions.
   "invalid, do not pause"; the tool's schema then converted `"4"` to `4` and wrote the booking
   without confirmation. The gate now validates the raw arguments with the tool's own schema
   first, so it checks exactly what the tool will execute, and a regression test pins it.
+- **A model that filled in what the user never said.** One eval run in twenty booked a room for
+  a request that never mentioned how many people attend. The system prompt already forbade
+  guessing; repeating the rule in the tool's argument descriptions, where the model actually
+  fills the value, fixed it (22 of 22 eval runs since). The confirmation card stays as the
+  safety net: the user sees the number before anything is written.
 
 ## Assumptions
 
