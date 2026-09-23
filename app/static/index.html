@@ -87,6 +87,12 @@
   .booking-row:first-child { border-top: none; }
   .booking-row-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
   .booking-row-details { font-size: 13px; color: var(--muted); }
+  .bookings-card .show-more {
+    width: 100%; height: auto; padding: 8px 14px; border: none; border-top: 1px solid var(--grid-line);
+    border-radius: 0 0 12px 12px; background: none; color: var(--accent); font-size: 13px;
+    font-weight: 600; text-align: left;
+  }
+  .bookings-card .show-more:hover { background: #f9fafb; }
   .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
   .suggestions button { height: auto; font-size: 13px; padding: 6px 14px; border-radius: 999px; color: var(--muted); }
   .suggestions button:hover { background: #f9fafb; }
@@ -316,6 +322,7 @@ function addConfirmation(actions) {
   scrollToBottom();
 }
 
+const VISIBLE_BOOKINGS = 5;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -336,8 +343,21 @@ function addBookingsList(bookings) {
     details.textContent = `${day} · ${time} · Room ${booking.room} · ${attendees}`;
     const row = document.createElement("div");
     row.className = "booking-row";
+    if (card.children.length >= VISIBLE_BOOKINGS) row.classList.add("hidden");
     row.append(title, details);
     card.append(row);
+  }
+  const hiddenRows = card.querySelectorAll(".booking-row.hidden");
+  if (hiddenRows.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "show-more";
+    more.textContent = `Show ${hiddenRows.length} more`;
+    more.addEventListener("click", () => {
+      for (const row of hiddenRows) row.classList.remove("hidden");
+      more.remove();
+    });
+    card.append(more);
   }
   byId("messages").append(card);
   scrollToBottom();

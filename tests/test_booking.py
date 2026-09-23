@@ -273,3 +273,9 @@ def test_bookings_of_lists_only_own_active_future_bookings(service, clock):
     assert [booking["title"] for booking in service.bookings_of(USER1_ID)] == ["Earlier", "Later"]
     clock.now = local("2026-09-23T12:00")
     assert [booking["title"] for booking in service.bookings_of(USER1_ID)] == ["Later"]
+
+
+def test_bookings_of_orders_bookings_at_the_same_time_by_room(service):
+    service.create(USER1_ID, booking_request(room_id="E", title="In E"))
+    service.create(USER1_ID, booking_request(room_id="C", title="In C"))
+    assert [booking["room"] for booking in service.bookings_of(USER1_ID)] == ["C", "E"]

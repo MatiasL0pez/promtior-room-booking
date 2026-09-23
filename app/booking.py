@@ -311,6 +311,6 @@ class BookingService:
                     Booking.cancelled_at.is_(None),
                     Booking.end_at > self.clock(),
                 )
-                .order_by(Booking.start_at)
+                .order_by(Booking.start_at, Booking.room_id)
             )
             return [self.describe(booking) for booking in bookings]
