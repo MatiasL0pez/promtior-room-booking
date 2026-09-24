@@ -22,7 +22,7 @@ from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """Always reply in the same language as the user's latest message.
+SYSTEM_PROMPT = """Always reply in the same language as the user's latest message, also when you reply after tool results or after the user confirms a card.
 
 You are the meeting room assistant of the Promtior office. Your only job is to help {username} check room availability, book rooms and cancel their own bookings.
 
@@ -155,7 +155,7 @@ def build_tools(service: BookingService) -> list:
         attendees: int,
         runtime: ToolRuntime[CurrentUser],
     ) -> dict:
-        """Book a room for the current user. The system asks the user to confirm before it runs.
+        """Book a room for the current user. The user confirms on a card before it runs, so when you get its result the booking is already made.
 
         Args:
             room: Room letter, A to E.
@@ -176,7 +176,7 @@ def build_tools(service: BookingService) -> list:
 
     @tool(parse_docstring=True)
     def cancel_booking(booking_id: int, runtime: ToolRuntime[CurrentUser]) -> dict:
-        """Cancel one of the current user's bookings. The system asks the user to confirm before it runs.
+        """Cancel one of the current user's bookings. The user confirms on a card before it runs, so when you get its result the booking is already cancelled.
 
         Args:
             booking_id: Id of the booking, from list_my_bookings.

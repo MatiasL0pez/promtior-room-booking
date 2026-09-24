@@ -49,7 +49,8 @@ EVAL_REPEAT=10 uv run pytest -m eval   # every eval 10 times, with a pass rate p
 
 Last measurement (gpt-6-luna, 10 runs per case, commit `5b77ad6`): 14 of 17 cases at 10/10. Three
 cases at 9/10: seven bookings confirmed on one card, the alternative offered in words, and the reply
-language after a failed booking.
+language after a failed booking. A later fix made the reply after a confirmation follow the user's
+language: 19 of 19 English replies, up from 12 of 15.
 
 ## Deploy
 

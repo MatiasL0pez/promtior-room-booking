@@ -101,6 +101,14 @@ The path of one message, from the question to the answer and through the confirm
   them. Stating the rule without the contradiction, with an example, and repeating it in the
   system prompt brought it to 10 of 10. The cheaper stand-in model had passed the first wording
   3 of 3, which is why only the production model's runs decide rules about how it phrases a reply.
+- **The reply after a confirmation.** No eval looked at what the assistant says once the user
+  confirms a card, and the notebook caught it answering an English request in Spanish and calling
+  the finished bookings "pending". Replaying that step showed Spanish in 3 of 15 English
+  conversations. The language rule only named "the user's latest message", but at that point the
+  model sees tool results and a click, not a message. The tool descriptions also said the system
+  asks the user to confirm, and nothing said that a result means the booking is done. The rule now
+  covers replies after tool results and confirmations, the descriptions say a result means it is
+  done, and the evals check the language of that reply: 19 of 19 in English afterwards.
 
 ## Assumptions
 

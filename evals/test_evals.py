@@ -179,7 +179,8 @@ def test_act_book_after_confirmation(eval_app):
     assert action["summary"].startswith("Book room B · Wed 23 Sep, 10:00–11:30")
     assert "Interview with John Doe" in action["summary"]
     assert action["summary"].endswith("4 attendees")
-    user1.decide(approve=True)
+    done = user1.decide(approve=True)
+    assert LANGUAGE_DETECTOR.detect_language_of(done["reply"]) == Language.ENGLISH, done["reply"]
     [booking] = eval_app.state.service.bookings_of(USER1_ID)
     assert (booking["room"], booking["start"], booking["end"]) == (
         "B",
@@ -221,11 +222,25 @@ def test_act_book_several_days_in_one_confirmation(eval_app):
     assert [action["tool"] for action in second["pending_actions"]] == ["create_booking"] * 7, (
         second["reply"]
     )
-    user1.decide(approve=True)
+    done = user1.decide(approve=True)
+    assert LANGUAGE_DETECTOR.detect_language_of(done["reply"]) == Language.SPANISH, done["reply"]
     bookings = eval_app.state.service.bookings_of(USER1_ID)
     assert sorted((booking["room"], booking["start"]) for booking in bookings) == [
         ("D", f"2026-09-{day}T11:00") for day in range(23, 30)
     ]
+
+
+def test_reply_after_confirming_several_bookings_in_english(eval_app):
+    user1 = Conversation(eval_app, "User1")
+    reply = user1.say(
+        'Book room D from 11:00 to 13:00 tomorrow and the two following days for 5 people, title "Standup"'
+    )
+    assert [action["tool"] for action in reply["pending_actions"]] == ["create_booking"] * 3, reply[
+        "reply"
+    ]
+    done = user1.decide(approve=True)
+    assert LANGUAGE_DETECTOR.detect_language_of(done["reply"]) == Language.ENGLISH, done["reply"]
+    assert len(eval_app.state.service.bookings_of(USER1_ID)) == 3
 
 
 def test_act_cancel_my_own_booking(eval_app):

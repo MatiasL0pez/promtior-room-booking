@@ -1,4 +1,4 @@
-# Room Booking Assistant — Design Spec
+# Room Booking Assistant: Design Spec
 
 Date: 2026-09-22 · Status: approved in conversation, pending written review
 
@@ -18,10 +18,10 @@ run, test and use the deployed solution without asking anything.
 | 30-minute slots | `[start, end)` aligned to :00/:30 (§4) |
 | Attendees must not exceed capacity | `CAPACITY_EXCEEDED` rule (§4) |
 | No double bookings, no overlaps | `booking_slots` primary key `(room_id, slot_start)` (§4) |
-| Only contiguous slots, max 3 hours | A booking is one aligned range; `TOO_LONG` rule (§4) |
+| Only contiguous slots, max 3 hours | A booking is one aligned range, `TOO_LONG` rule (§4) |
 | Every booking has a title | `TITLE_REQUIRED` rule (§4) |
 | Login for User1 / User2 with the given password | `POST /auth/login`, JWT (§6) |
-| Create a booking for the logged-in user | `create_booking` tool; user comes from runtime context (§5) |
+| Create a booking for the logged-in user | `create_booking` tool, the user comes from runtime context (§5) |
 | List available rooms for a time range | `list_available_rooms` tool (§5) |
 | Room schedule, available vs occupied | `get_room_schedule` tool (§5) |
 | Cancel own bookings only | `cancel_booking` tool + `NOT_OWNER` rule (§4, §5) |
@@ -32,13 +32,13 @@ run, test and use the deployed solution without asking anything.
 
 ## 3. Assumptions
 
-Not specified by the challenge; documented and configurable:
+Not specified by the challenge, so documented and configurable:
 
 - Capacities: A=4, B=6, C=8, D=12, E=20.
 - Bookable hours: 08:00–20:00, any day of the week.
-- Single time zone: `America/Montevideo`. Tools speak local ISO 8601 (`2026-09-23T10:00`); the
+- Single time zone: `America/Montevideo`. Tools speak local ISO 8601 (`2026-09-23T10:00`) and the
   database stores UTC.
-- Conversations are working memory (in-process); bookings are the durable record.
+- Conversations are working memory (in-process). Bookings are the durable record.
 
 ## 4. Domain
 
@@ -116,9 +116,9 @@ Built with LangChain `create_agent` (LangGraph runtime) and an OpenAI chat model
 `allowed_decisions = ["approve", "reject"]` and a `when` predicate that runs `check_create` /
 `check_cancel`:
 
-- Invalid request → no pause; the tool runs, returns the error, nothing is written, the model
-  explains and offers alternatives.
-- Valid request → pause; the UI shows a confirmation card built by the `description` callable
+- Invalid request → no pause. The tool runs, returns the error, nothing is written, and the
+  model explains and offers alternatives.
+- Valid request → pause. The UI shows a confirmation card built by the `description` callable
   ("Room B · Wed 23 Sep, 10:00–11:30 · Interview with John · 4 attendees").
 - Approve → the tool writes. A slot lost to a concurrent booking in between returns `SLOT_TAKEN`.
 - Reject → the tool does not run.
@@ -129,9 +129,9 @@ Built with LangChain `create_agent` (LangGraph runtime) and an OpenAI chat model
 
 ### System prompt
 
-Rebuilt on every turn with: the assistant's sole purpose; rooms and capacities; the current date,
-time and weekday in Montevideo; bookable hours and rules; instructions to ask for any missing
-field instead of guessing, to find booking ids with `list_my_bookings`, not to ask for
+Rebuilt on every turn with the assistant's sole purpose, rooms and capacities, the current date,
+time and weekday in the office's time zone, bookable hours and rules, and instructions to ask for
+any missing field instead of guessing, to find booking ids with `list_my_bookings`, not to ask for
 confirmation in text (the system pauses on its own), to reply in the user's language, in short
 plain text, and to decline anything outside room booking.
 
@@ -139,7 +139,7 @@ plain text, and to decline anything outside room booking.
 
 - Checkpointer: `InMemorySaver`. Thread id = `"{user_id}:{conversation_id}"`, built on the server,
   so a user can never resume another user's thread.
-- At most 6 model calls per user message (`ModelCallLimitMiddleware`); message length ≤ 1000
+- At most 6 model calls per user message (`ModelCallLimitMiddleware`), and message length ≤ 1000
   characters.
 
 ## 6. API, authentication, UI
@@ -148,8 +148,8 @@ plain text, and to decline anything outside room booking.
 - `POST /chat/messages` `{conversation_id?, message}` and `POST /chat/decisions`
   `{conversation_id, approve}` → `{conversation_id, reply, pending_actions: [{tool, summary}], bookings}`.
   `bookings` is the result of `list_my_bookings` when the model called it in that turn and nothing
-  waits for confirmation (else `null`: when a card is pending, the card is what the user needs);
-  the page lists it under the reply, so the model answers in one sentence instead of repeating it.
+  waits for confirmation (else `null`: when a card is pending, the card is what the user needs).
+  The page lists it under the reply, so the model answers in one sentence instead of repeating it.
   A decision with no pending action → 409.
 - `GET /auth/me` → the logged-in user, so the UI can check a stored token.
 - `GET /rooms`, `GET /rooms/{id}/schedule?start&end`, `GET /bookings/mine` → read-only REST over
@@ -164,10 +164,10 @@ plain text, and to decline anything outside room booking.
 
 ### Tests (pytest, no API key, seconds)
 
-- Domain: every rule in §4 with one passing and one failing case, fixed clock, SQLite in memory;
-  a race test where two transactions take the same slot and exactly one wins.
-- API: login ok / wrong password / 401 without token; REST endpoints; User1 cannot cancel a
-  booking of User2; decision without pending action → 409.
+- Domain: every rule in §4 with one passing and one failing case, fixed clock, SQLite in memory,
+  and a race test where two transactions take the same slot and exactly one wins.
+- API: login ok, wrong password and 401 without token, the REST endpoints, User1 cannot cancel a
+  booking of User2, and a decision without a pending action → 409.
 - Agent wiring with a fake chat model that emits scripted tool calls: pause only on valid writes,
   approve writes, reject does not, `user_id` absent from every tool schema.
 
@@ -178,11 +178,11 @@ state, never on wording.
 
 | Path | Cases |
 |---|---|
-| Answer | free rooms for 8 people tomorrow 15:00–16:00; schedule of room C |
+| Answer | free rooms for 8 people tomorrow 15:00–16:00, schedule of room C |
 | Clarify | "book me a room tomorrow" (no title, no attendees) → asks, writes nothing |
-| Refuse | "write me a poem"; "cancel User2's booking" |
+| Refuse | "write me a poem", "cancel User2's booking" |
 | Structured failure | 30 people in room A → nothing written, capacity explained |
-| Act | pause carries correct args and approve persists it; relative dates ("next Friday"); correction next turn ("make it 6 people"); replies in the user's language |
+| Act | pause carries correct args and approve persists it, relative dates ("next Friday"), correction next turn ("make it 6 people"), replies in the user's language |
 
 ### Cost and abuse controls
 
@@ -216,20 +216,20 @@ Dockerfile · pyproject.toml · uv.lock · .env.example · .gitattributes · .gi
 
 ## 9. Documentation deliverables (`/doc`)
 
-- `README.md` — project overview: approach, key decisions, challenges and how they were solved,
+- `README.md`: project overview with approach, key decisions, challenges and how they were solved,
   assumptions, limitations, next steps. Drafted, then rewritten in the author's own words.
-- `architecture.md` — component diagram and the sequence of one message from question to answer,
+- `architecture.md`: component diagram and the sequence of one message from question to answer,
   in Mermaid (rendered by GitHub) and exported to PNG.
-- `walkthrough.ipynb` — each technology with real code from the repo: rules in action, the slot
+- `walkthrough.ipynb`: each technology with real code from the repo: rules in action, the slot
   race, the tool schema without `user_id`, a real conversation with pause and approval, and the eval
   summary. Committed executed so it reads without an API key.
-- `process/` — this spec and the implementation plan.
+- `process/`: this spec and the implementation plan.
 
 ## 10. Deployment and tooling
 
 - `uv` + `pyproject.toml`, `ruff` (lint and format), GitHub Actions running lint and tests (not
   evals), badge in the root README. `.gitattributes` forces LF.
-- `Dockerfile`; Railway service from the GitHub repo plus Railway Postgres. Variables:
+- `Dockerfile`, and a Railway service from the GitHub repo plus Railway Postgres. Variables:
   `OPENAI_API_KEY`, `OPENAI_MODEL`, `DATABASE_URL` (normalized to the psycopg driver), `JWT_SECRET`,
   optional LangSmith. Tables and seed created at startup, idempotent. Healthcheck `/health`.
 
@@ -248,11 +248,11 @@ libraries (langchain 1.4.2, langgraph 1.2.12, langchain-openai 1.6.3, fastapi 0.
    again when the graph resumes, so a booking that became invalid while waiting is not paused
    again: the tool runs, fails validation and writes nothing.
 2. `@dynamic_prompt` middleware rebuilds the system prompt on every model call.
-3. `GenericFakeChatModel` lacks `bind_tools`; a subclass that returns itself scripts tool calls.
+3. `GenericFakeChatModel` lacks `bind_tools`. A subclass that returns itself scripts tool calls.
 4. Default model `gpt-6-luna` (OpenAI models page, 2026-09-22): function calling, reasoning effort
    levels, USD 0.10 / 0.50 per million input / output tokens. Called through the Responses API.
-5. `invoke(..., version="v2")` returns `.value` and `.interrupts`; `get_state(config).interrupts`
-   tells whether a confirmation is pending; `reject` with a `message` reaches the model as the
+5. `invoke(..., version="v2")` returns `.value` and `.interrupts`. `get_state(config).interrupts`
+   tells whether a confirmation is pending, and `reject` with a `message` reaches the model as the
    user's reason.
 6. FastAPI recommends `pwdlib[argon2]` and `PyJWT`. `OAuth2PasswordRequestForm` needs
-   `python-multipart`; `tzdata` is needed for time zones on Windows and slim images.
+   `python-multipart`, and `tzdata` is needed for time zones on Windows and slim images.

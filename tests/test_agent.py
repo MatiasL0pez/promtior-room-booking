@@ -147,7 +147,8 @@ def test_system_prompt_carries_the_user_and_the_office_time(service):
     assert system_message.type == "system"
     assert (
         system_message.text.splitlines()[0]
-        == "Always reply in the same language as the user's latest message."
+        == "Always reply in the same language as the user's latest message, also when you reply"
+        " after tool results or after the user confirms a card."
     )
     assert "User1" in system_message.text
     assert "2026-09-22T09:00 (Tuesday)" in system_message.text
