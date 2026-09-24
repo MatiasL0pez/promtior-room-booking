@@ -94,7 +94,7 @@ The path of one message, from the question to the answer and through the confirm
   calls, and the limit's default behavior writes its own message as the answer. The limit now
   raises and the chat answers with a plain message (so do a model outage, an unexpected error and
   a network drop), and the model may make several tool calls in one step: the seven bookings
-  arrive on one card. That case measured 19 of 20 over two runs.
+  arrive on one card. That case passed 28 of 30 times over three measurements.
 - **A rule the model ignored where it was written.** Once the page listed the bookings, the tool
   description told the model not to repeat them. It still recapped them in one sentence in 9 of
   10 runs. The description also said "answer what the user asked", and the user had asked to see
@@ -125,5 +125,7 @@ day, in a single time zone, `America/Montevideo`. All three are configuration.
   and per-user time zones are out of scope.
 - A card is approved or rejected as a whole. To change one of its lines, the user types it and the
   assistant proposes again.
-- The walkthrough notebook was executed before the latest changes. Its eval section shows the 11
-  evals that existed then (there are 17 now).
+- About one time in ten, a request for several days still comes out split: the model books the
+  first day alone and proposes the rest on a second card, or answers that it can only book one
+  date. A more directive rule ("one booking per day, all in the same step") made the split more
+  frequent (6 and 7 of 10 instead of 9), so it was measured and reverted.
