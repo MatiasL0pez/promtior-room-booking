@@ -122,8 +122,9 @@ Built with LangChain `create_agent` (LangGraph runtime) and an OpenAI chat model
   ("Room B · Wed 23 Sep, 10:00–11:30 · Interview with John · 4 attendees").
 - Approve → the tool writes. A slot lost to a concurrent booking in between returns `SLOT_TAKEN`.
 - Reject → the tool does not run.
-- Typing a message while a confirmation is pending counts as a reject whose message is the user's
-  text ("make it 11 instead"), so the model adjusts and proposes again.
+- Typing a message while a confirmation is pending counts as a reject. The model receives the
+  user's text framed as a new message to answer, so both a correction ("make it 11 instead") and an
+  unrelated request work.
 - The model may make several tool calls in one step ("book D every day this week"): the pause lists
   every write that would succeed on one card, and one decision applies to all of them.
 

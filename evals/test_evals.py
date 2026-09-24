@@ -243,6 +243,23 @@ def test_reply_after_confirming_several_bookings_in_english(eval_app):
     assert len(eval_app.state.service.bookings_of(USER1_ID)) == 3
 
 
+def test_answer_a_new_request_typed_over_a_pending_card(eval_app):
+    mine = eval_app.state.service.create(
+        USER1_ID,
+        booking_request(
+            room_id="C", start="2026-09-23T15:00", end="2026-09-23T17:00", title="Sync", attendees=3
+        ),
+    )
+    user1 = Conversation(eval_app, "User1")
+    first = user1.say("Cancel my booking in room C tomorrow at 15:00")
+    assert [action["tool"] for action in first["pending_actions"]] == ["cancel_booking"]
+    second = user1.say('Book room B tomorrow from 12:00 to 13:00 for 4 people, title "Lunch"')
+    assert eval_app.state.service.bookings_of(USER1_ID) == [mine]
+    assert [action["tool"] for action in second["pending_actions"]] == ["create_booking"], second[
+        "reply"
+    ]
+
+
 def test_act_cancel_my_own_booking(eval_app):
     eval_app.state.service.create(
         USER1_ID,

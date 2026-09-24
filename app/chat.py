@@ -40,7 +40,10 @@ class Conversations:
             pending = self.agent.get_state(config).interrupts
             if pending:
                 action_count = len(pending[0].value["action_requests"])
-                rejection = {"type": "reject", "message": message}
+                rejection = {
+                    "type": "reject",
+                    "message": f"The user did not confirm and sent this message instead. Answer it: {message}",
+                }
                 agent_input = Command(resume={"decisions": [rejection] * action_count})
             else:
                 agent_input = {"messages": [{"role": "user", "content": message}]}

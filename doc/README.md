@@ -109,6 +109,11 @@ The path of one message, from the question to the answer and through the confirm
   asks the user to confirm, and nothing said that a result means the booking is done. The rule now
   covers replies after tool results and confirmations, the descriptions say a result means it is
   done, and the evals check the language of that reply: 19 of 19 in English afterwards.
+- **A new request typed over a pending card.** Typing while a card waits rejects it, which is what
+  makes "make it 6 people" work. The library hands the typed text to the model as the reason for
+  the rejection, so a different request got half an answer: the model talked about the cancelled
+  card and did not book the new room (7 of 10). The server now frames the text as a new message
+  to answer, which took it to 10 of 10 while corrections stayed at 10 of 10.
 
 ## Assumptions
 
